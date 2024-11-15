@@ -43,7 +43,13 @@
 			</button>
 			<button @click="moveModelBackward">
 				<img src="../assets/down.png" alt="down" width="2	0" height="20">
-			</button>	
+			</button>
+			<button @click="rotateModelLeft">
+				<img src="../assets/rotate-left.png" alt="rotate left" width="20" height="20">
+			</button>
+			<button @click="rotateModelRight">
+				<img src="../assets/rotate-right.png" alt="rotate right" width="20" height="20">
+			</button>  
 			
 		</div>  
 		<!-- Add this to your template -->
@@ -52,7 +58,7 @@
 			:key="model.id" 
 			:class="['model-item', { selected: selectedModelId === model.id }]"
 			@click="selectModel(model.id)">
-			<span>Model #{{model.id}}</span>
+			<span>{{model.name}}</span>
 			<button @click.stop="removeModel(model.id)">Remove</button>
 			</div>
 		</div>     
@@ -259,7 +265,9 @@
 			const modelEntry = {
 				id: Date.now(),
 				model: newModel,
-				position: { x: 0, y: 0, z: 0 }
+				name: modelPath.name,
+				position: { x: 0, y: 0, z: 0 },
+				rotation: { y: 0 } 
 			};
 
 			// Add to placedModels array
@@ -360,54 +368,82 @@
 			}
 		};
 		const moveModel = (direction) => {
-		if (!selectedModelId.value) return;
+			if (!selectedModelId.value) return;
 
-		const modelEntry = placedModels.value.find(
-		entry => entry.id === selectedModelId.value
-		);
-		if (!modelEntry) return;
+			const modelEntry = placedModels.value.find(
+			entry => entry.id === selectedModelId.value
+			);
+			if (!modelEntry) return;
 
-		const step = 0.5;
-		const previousPosition = { ...modelEntry.position };
+			const step = 0.5;
+			const previousPosition = { ...modelEntry.position };
 
-		switch (direction) {
-		case 'left':
-		modelEntry.position.x -= step;
-		break;
-		case 'right':
-		modelEntry.position.x += step;
-		break;
-		case 'forward':
-		modelEntry.position.z -= step;
-		break;
-		case 'backward':
-		modelEntry.position.z += step;
-		break;
-		}
+			switch (direction) {
+			case 'left':
+			modelEntry.position.x -= step;
+			break;
+			case 'right':
+			modelEntry.position.x += step;
+			break;
+			case 'forward':
+			modelEntry.position.z -= step;
+			break;
+			case 'backward':
+			modelEntry.position.z += step;
+			break;
+			}
 
-		// Check boundaries
-		const boundaryOffset = 1;
-		const isOutOfBounds = 
-		Math.abs(modelEntry.position.x) > (roomWidth.value / 2 - boundaryOffset) ||
-		Math.abs(modelEntry.position.z) > (roomDepth.value / 2 - boundaryOffset);
+			// Check boundaries
+			const boundaryOffset = 1;
+			const isOutOfBounds = 
+			Math.abs(modelEntry.position.x) > (roomWidth.value / 2 - boundaryOffset) ||
+			Math.abs(modelEntry.position.z) > (roomDepth.value / 2 - boundaryOffset);
 
-		if (isOutOfBounds) {
-		modelEntry.position = previousPosition;
-		return;
-		}
+			if (isOutOfBounds) {
+			modelEntry.position = previousPosition;
+			return;
+			}
 
-		// Update model position in the scene
-		modelEntry.model.position.set(
-		modelEntry.position.x,
-		modelEntry.position.y,
-		modelEntry.position.z
-		);
+			// Update model position in the scene
+			modelEntry.model.position.set(
+			modelEntry.position.x,
+			modelEntry.position.y,
+			modelEntry.position.z
+			);
 		};
 			const moveModelLeft = () => moveModel('left');
 			const moveModelRight = () => moveModel('right');
 			const moveModelForward = () => moveModel('forward');
 			const moveModelBackward = () => moveModel('backward');
 			
+			const rotateModel = (direction) => {
+				if (!selectedModelId.value) return;
+
+				const modelEntry = placedModels.value.find(
+				entry => entry.id === selectedModelId.value
+				);
+				if (!modelEntry) return;
+
+				const rotationStep = Math.PI / 8; // 22.5 degrees
+
+				// Store the current rotation
+				if (!modelEntry.rotation) {
+				modelEntry.rotation = { y: 0 };
+				}
+
+				// Update rotation
+				if (direction === 'left') {
+				modelEntry.rotation.y += rotationStep;
+				} else if (direction === 'right') {
+				modelEntry.rotation.y -= rotationStep;
+				}
+
+				// Apply rotation to the model
+				modelEntry.model.rotation.y = modelEntry.rotation.y;
+			};
+
+			const rotateModelLeft = () => rotateModel('left');
+			const rotateModelRight = () => rotateModel('right');
 		return {
 			sceneContainer,
 			isRoomInitialized,
@@ -425,7 +461,9 @@
 			selectModel,
 			removeModel,
 			placedModels,
-			selectedModelId
+			selectedModelId,
+			rotateModelLeft,
+			rotateModelRight
 		};
 		},
 	});
@@ -530,54 +568,54 @@
 	}
 	
 	.control-panel {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	gap: 5px;
-	position: absolute;
-	top: 16%;
-	right: 2% ;
-	transform: translate(-50%, -50%);
-	z-index: 10;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+		align-items: center;
+		gap: 5px;
+		position: absolute;
+		top: 16%;
+		right: 2% ;
+		transform: translate(-50%, -50%);
+		z-index: 10;
 	}
 
 	.control-panel button {
-	background-color: #333;
-	border: 2px solid #fff;
-	border-radius: 50%;
-	width: 40px;
-	height: 40px;
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	cursor: pointer;
-	transition: background-color 0.3s, transform 0.2s;
+		background-color: #333;
+		border: 2px solid #fff;
+		border-radius: 50%;
+		width: 40px;
+		height: 40px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		cursor: pointer;
+		transition: background-color 0.3s, transform 0.2s;
 	}
 
 	.control-panel button img {
-	width: 20px;
-	height: 20px;
+		width: 20px;
+		height: 20px;
 	}
 
 	.control-panel button:hover {
-	background-color: #555;
-	transform: scale(1.1);
+		background-color: #555;
+		transform: scale(1.1);
 	}
 
 	.control-panel button:active {
-	background-color: #777;
-	transform: scale(1.05);
+		background-color: #777;
+		transform: scale(1.05);
 	}
 
 	.control-panel .direction-row {
-	display: flex;
-	justify-content: center;
-	gap: 10px;
+		display: flex;
+		justify-content: center;
+		gap: 10px;
 	}
 
 	.control-panel .direction-row:nth-child(2) {
-	margin-top: 10px;
+		margin-top: 10px;
 	}
 
 	/* Adding an extra gap for the middle button */
