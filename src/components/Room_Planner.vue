@@ -45,7 +45,17 @@
 				<img src="../assets/down.png" alt="down" width="2	0" height="20">
 			</button>	
 			
-		</div>       
+		</div>  
+		<!-- Add this to your template -->
+		<div class="placed-models-list">
+			<div v-for="model in placedModels" 
+			:key="model.id" 
+			:class="['model-item', { selected: selectedModelId === model.id }]"
+			@click="selectModel(model.id)">
+			<span>Model #{{model.id}}</span>
+			<button @click.stop="removeModel(model.id)">Remove</button>
+			</div>
+		</div>     
 		</div>
 	</div>
 </template>
@@ -75,14 +85,14 @@
 		const roomWidth = ref(10);
 		const roomHeight = ref(5);
 		const roomDepth = ref(10);
-		const modelPosition = ref({ x: 0, y: 0, z: 0 });
+		// const modelPosition = ref({ x: 0, y: 0, z: 0 });
 		const currentModelPath = ref(null);
 
 	
 		const isValidDimensions = computed(() => {
-		return roomWidth.value > 0 && 
-			roomHeight.value > 0 && 
-			roomDepth.value > 0;
+		return roomWidth.value > 5 && 
+			roomHeight.value > 5 && 
+			roomDepth.value > 5;
 		});
 	
 		let scene, camera, renderer, controls;
@@ -92,19 +102,17 @@
 		wall: null,
 		ceiling: null
 		};
-		let model = null;
+		// let model = null;
 		let roomObjects = [];
-		let currentModel = null;
+		// let currentModel = null;
+		// In setup()
+		const placedModels = ref([]);
+		const selectedModelId = ref(null);
 
 
 		const handleModelSelect = (modelPath) => {
-		// Remove any existing model first
-		if (currentModel) {
-			scene.remove(currentModel);
-			currentModel = null;
-		}
-		
-		currentModelPath.value = modelPath;
+		if (isLoading.value) return;
+		if (!modelPath?.model) return;
 		if (scene && isRoomInitialized.value) {
 			loadModel(modelPath);
 		}
@@ -127,10 +135,7 @@
 		};
 	
 		const createRoom = () => {
-			if (currentModel) {
-				scene.remove(currentModel);
-				currentModel = null;
-			}
+
 			roomObjects.forEach(obj => scene.remove(obj));
 			roomObjects = [];
 		
@@ -227,45 +232,44 @@
 		};
 	
 		const loadModel = (modelPath) => {
-			if (!modelPath?.model) return;
-			isLoading.value = true;
+		if (!modelPath?.model) return;
+		isLoading.value = true;
 
-			if (model) {
-				scene.remove(model);
-				model = null;
-			}
-			
-			const dracoLoader = new DRACOLoader();
-			dracoLoader.setDecoderPath('/draco/');
-			dracoLoader.setDecoderConfig({ type: 'js' });
-		
-			const loader = new GLTFLoader();
-			loader.setDRACOLoader(dracoLoader);
-			loader.load(
+		const dracoLoader = new DRACOLoader();
+		dracoLoader.setDecoderPath('/draco/');
+		dracoLoader.setDecoderConfig({ type: 'js' });
+
+		const loader = new GLTFLoader();
+		loader.setDRACOLoader(dracoLoader);
+		loader.load(
 			modelPath.model,
 			(gltf) => {
-				if (currentModel) {
-			scene.remove(currentModel);
-			}
-
-			// Set up the new model
-			currentModel = gltf.scene;
-			currentModel.traverse((child) => {
-			if (child.isMesh) {
-			child.castShadow = true;
-			child.receiveShadow = true;
-			}
+			const newModel = gltf.scene;
+			newModel.traverse((child) => {
+				if (child.isMesh) {
+				child.castShadow = true;
+				child.receiveShadow = true;
+				}
 			});
 
 			const scaleFactor = roomHeight.value / 2;
-			currentModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+			newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-			// Reset position
-			modelPosition.value = { x: 0, y: 0, z: 0 };
-			currentModel.position.set(0, 0, 0);
+			// Create a unique model entry
+			const modelEntry = {
+				id: Date.now(),
+				model: newModel,
+				position: { x: 0, y: 0, z: 0 }
+			};
 
+			// Add to placedModels array
+			placedModels.value.push(modelEntry);
+			
+			// Set as selected model
+			selectedModelId.value = modelEntry.id;
+			
 			// Add to scene
-			scene.add(currentModel);
+			scene.add(newModel);
 			isLoading.value = false;
 			},
 			undefined,
@@ -275,7 +279,6 @@
 			}
 		);
 		};
-
 		const initializeRoom = () => {
 			if (!isValidDimensions.value) return;
 			isRoomInitialized.value = true;
@@ -285,7 +288,7 @@
 			setTimeout(() => {
 			initScene();
 			if (currentModelPath.value) {
-			loadModel(currentModelPath.value);
+				loadModel(currentModelPath.value);
 			} else {
 			isLoading.value = false;
 			}
@@ -342,40 +345,69 @@
 			}
 			});
 		});
-		const moveModel = (direction) => {
-			if (!currentModel) return;
+		const selectModel = (modelId) => {
+		selectedModelId.value = modelId;
+		};
 
-			// Adjust the model's position based on the direction
-			switch (direction) {
-				case 'left':
-				modelPosition.value.x -= 1;
-				break;
-				case 'right':
-				modelPosition.value.x += 1;
-				break;
-				case 'forward':
-				modelPosition.value.z -= 1;
-				break;
-				case 'backward':
-				modelPosition.value.z += 1;
-				break;
+		const removeModel = (modelId) => {
+			const modelEntry = placedModels.value.find(entry => entry.id === modelId);
+			if (modelEntry) {
+			scene.remove(modelEntry.model);
+			placedModels.value = placedModels.value.filter(entry => entry.id !== modelId);
+			if (selectedModelId.value === modelId) {
+			selectedModelId.value = null;
 			}
+			}
+		};
+		const moveModel = (direction) => {
+		if (!selectedModelId.value) return;
 
-			// Update model position in the scene
-			if (currentModel) {
-			currentModel.position.set(
-			modelPosition.value.x,
-			modelPosition.value.y,
-			modelPosition.value.z
-			);
+		const modelEntry = placedModels.value.find(
+		entry => entry.id === selectedModelId.value
+		);
+		if (!modelEntry) return;
+
+		const step = 0.5;
+		const previousPosition = { ...modelEntry.position };
+
+		switch (direction) {
+		case 'left':
+		modelEntry.position.x -= step;
+		break;
+		case 'right':
+		modelEntry.position.x += step;
+		break;
+		case 'forward':
+		modelEntry.position.z -= step;
+		break;
+		case 'backward':
+		modelEntry.position.z += step;
+		break;
 		}
-			};
+
+		// Check boundaries
+		const boundaryOffset = 1;
+		const isOutOfBounds = 
+		Math.abs(modelEntry.position.x) > (roomWidth.value / 2 - boundaryOffset) ||
+		Math.abs(modelEntry.position.z) > (roomDepth.value / 2 - boundaryOffset);
+
+		if (isOutOfBounds) {
+		modelEntry.position = previousPosition;
+		return;
+		}
+
+		// Update model position in the scene
+		modelEntry.model.position.set(
+		modelEntry.position.x,
+		modelEntry.position.y,
+		modelEntry.position.z
+		);
+		};
 			const moveModelLeft = () => moveModel('left');
 			const moveModelRight = () => moveModel('right');
 			const moveModelForward = () => moveModel('forward');
 			const moveModelBackward = () => moveModel('backward');
-
-	
+			
 		return {
 			sceneContainer,
 			isRoomInitialized,
@@ -389,7 +421,11 @@
 			moveModelRight,
 			moveModelForward,
 			moveModelBackward,
-			handleModelSelect
+			handleModelSelect,
+			selectModel,
+			removeModel,
+			placedModels,
+			selectedModelId
 		};
 		},
 	});
@@ -548,6 +584,38 @@
 	.control-panel .direction-row > button:first-child {
 	margin-bottom: 10px;
 	}
+	.placed-models-list {
+		position: absolute;
+		right: 20px;
+		top: 20px;
+		background: rgba(255, 255, 255, 0.9);
+		padding: 10px;
+		border-radius: 5px;
+		max-height: 300px;
+		overflow-y: auto;
+	}
 
+	.model-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding: 5px 10px;
+		margin: 5px 0;
+		cursor: pointer;
+		border-radius: 4px;
+	}
+	.model-item.selected {
+		background: #e3f2fd;
+	}
+
+	.model-item button {
+		margin-left: 10px;
+		padding: 2px 6px;
+		background: #ff4444;
+		color: white;
+		border: none;
+		border-radius: 3px;
+		cursor: pointer;
+	}
 
 </style>
