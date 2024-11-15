@@ -75,8 +75,8 @@
 		const roomWidth = ref(10);
 		const roomHeight = ref(5);
 		const roomDepth = ref(10);
-		const modelPosition = ref({ x: 0, y: 0, z: 0 });
-		const currentModelPath = ref(null);
+		const models = ref([]); // Array to hold multiple models
+		const selectedModel = ref(null); // Track the currently selected model
 
 	
 		const isValidDimensions = computed(() => {
@@ -85,29 +85,18 @@
 			roomDepth.value > 0;
 		});
 	
-		let scene, camera, renderer, controls;
+		let scene, camera, renderer, controls, raycaster, mouse;
 		let textureLoader;
 		let textures = {
 		floor: null,
 		wall: null,
 		ceiling: null
 		};
-		let model = null;
-		let roomObjects = [];
-		let currentModel = null;
-
 
 		const handleModelSelect = (modelPath) => {
-		// Remove any existing model first
-		if (currentModel) {
-			scene.remove(currentModel);
-			currentModel = null;
-		}
-		
-		currentModelPath.value = modelPath;
-		if (scene && isRoomInitialized.value) {
-			loadModel(modelPath);
-		}
+			if (scene && isRoomInitialized.value) {
+				loadModel(modelPath);
+			}
 		};
 	
 		const loadTextures = () => {
@@ -127,12 +116,7 @@
 		};
 	
 		const createRoom = () => {
-			if (currentModel) {
-				scene.remove(currentModel);
-				currentModel = null;
-			}
-			roomObjects.forEach(obj => scene.remove(obj));
-			roomObjects = [];
+			scene.clear();
 		
 			textures.floor.repeat.set(roomWidth.value / 10, roomDepth.value / 10);
 			textures.wall.repeat.set(roomWidth.value / 10, roomHeight.value / 10);
@@ -147,7 +131,7 @@
 			const floor = new Three.Mesh(floorGeometry, floorMaterial);
 			floor.rotation.x = -Math.PI / 2;
 			scene.add(floor);
-			roomObjects.push(floor);
+			// roomObjects.push(floor);
 		
 			// Walls
 			const wallMaterial = new Three.MeshStandardMaterial({
@@ -162,7 +146,7 @@
 			backWall.position.set(0, roomHeight.value / 2, -roomDepth.value / 2);
 			backWall.receiveShadow = true;
 			scene.add(backWall);
-			roomObjects.push(backWall);
+			// roomObjects.push(backWall);
 		
 			// Front wall
 			const frontWall = new Three.Mesh(wallGeometry, wallMaterial);
@@ -170,7 +154,7 @@
 			frontWall.rotation.y = Math.PI;
 			frontWall.receiveShadow = true;
 			scene.add(frontWall);
-			roomObjects.push(frontWall);
+			// roomObjects.push(frontWall);
 		
 			// Left wall
 			const leftWall = new Three.Mesh(wallGeometry, wallMaterial);
@@ -178,7 +162,7 @@
 			leftWall.rotation.y = Math.PI / 2;
 			leftWall.receiveShadow = true;
 			scene.add(leftWall);
-			roomObjects.push(leftWall);
+			// roomObjects.push(leftWall);
 		
 			// Right wall
 			const rightWall = new Three.Mesh(wallGeometry, wallMaterial);
@@ -186,7 +170,7 @@
 			rightWall.rotation.y = -Math.PI / 2;
 			rightWall.receiveShadow = true;
 			scene.add(rightWall);
-			roomObjects.push(rightWall);
+			// roomObjects.push(rightWall);
 		
 			// Ceiling
 			const ceilingGeometry = new Three.PlaneGeometry(roomWidth.value, roomDepth.value);
@@ -200,7 +184,7 @@
 			ceiling.rotation.x = Math.PI / 2;
 			ceiling.receiveShadow = true;
 			scene.add(ceiling);
-			roomObjects.push(ceiling);
+			// roomObjects.push(ceiling);
 		
 			
 		};
@@ -230,10 +214,10 @@
 			if (!modelPath?.model) return;
 			isLoading.value = true;
 
-			if (model) {
-				scene.remove(model);
-				model = null;
-			}
+			// if (model) {
+			// 	scene.remove(model);
+			// 	model = null;
+			// }
 			
 			const dracoLoader = new DRACOLoader();
 			dracoLoader.setDecoderPath('/draco/');
@@ -244,29 +228,47 @@
 			loader.load(
 			modelPath.model,
 			(gltf) => {
-				if (currentModel) {
-			scene.remove(currentModel);
-			}
+			// 	if (currentModel) {
+			// scene.remove(currentModel);
+			// }
 
 			// Set up the new model
-			currentModel = gltf.scene;
-			currentModel.traverse((child) => {
-			if (child.isMesh) {
-			child.castShadow = true;
-			child.receiveShadow = true;
+			// currentModel = gltf.scene;
+			// currentModel.traverse((child) => {
+			// if (child.isMesh) {
+			// child.castShadow = true;
+			// child.receiveShadow = true;
+			// }
+			// });
+			if (selectedModel.value) {
+				scene.remove(selectedModel.value);
+				selectedModel.value = null;
 			}
+			const newModel = gltf.scene;
+			newModel.traverse((child) => {
+            if (child.isMesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
 			});
+				const scaleFactor = roomHeight.value / 2;
+				newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+				newModel.position.set(0, 0, 0);
 
-			const scaleFactor = roomHeight.value / 2;
-			currentModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+				scene.add(newModel);
+				models.value.push(newModel); // Add to the models array
 
-			// Reset position
-			modelPosition.value = { x: 0, y: 0, z: 0 };
-			currentModel.position.set(0, 0, 0);
+				isLoading.value = false;
+			// const scaleFactor = roomHeight.value / 2;
+			// currentModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
-			// Add to scene
-			scene.add(currentModel);
-			isLoading.value = false;
+			// // Reset position
+			// modelPosition.value = { x: 0, y: 0, z: 0 };
+			// currentModel.position.set(0, 0, 0);
+
+			// // Add to scene
+			// scene.add(currentModel);
+			// isLoading.value = false;
 			},
 			undefined,
 			(error) => {
@@ -284,11 +286,9 @@
 			// Wait for next tick to ensure sceneContainer is mounted
 			setTimeout(() => {
 			initScene();
-			if (currentModelPath.value) {
-			loadModel(currentModelPath.value);
-			} else {
+	
 			isLoading.value = false;
-			}
+			
 		}, 0);
 		};
 	
@@ -324,13 +324,32 @@
 			controls.dampingFactor = 0.25;
 			controls.screenSpacePanning = false;
 			controls.maxPolarAngle = Math.PI / 2;
+
+			raycaster = new Three.Raycaster();
+			mouse = new Three.Vector2();
 		
 			loadTextures();
 			createRoom();
 			addLights();
 		
 			animate();
+			sceneContainer.value.addEventListener('click', onModelClick);
 		};
+
+		const onModelClick = (event) => {
+			event.preventDefault();
+
+			// Calculate mouse position in normalized device coordinates
+			mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+			mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+			raycaster.setFromCamera(mouse, camera);
+			const intersects = raycaster.intersectObjects(models.value);
+
+			if (intersects.length > 0) {
+				selectedModel.value = intersects[0].object.parent; // Select the model
+			}
+			};
 	
 		// Handle window resize
 		onMounted(() => {
@@ -343,38 +362,28 @@
 			});
 		});
 		const moveModel = (direction) => {
-			if (!currentModel) return;
+      if (!selectedModel.value) return; // Only move the selected model
 
-			// Adjust the model's position based on the direction
-			switch (direction) {
-				case 'left':
-				modelPosition.value.x -= 1;
-				break;
-				case 'right':
-				modelPosition.value.x += 1;
-				break;
-				case 'forward':
-				modelPosition.value.z -= 1;
-				break;
-				case 'backward':
-				modelPosition.value.z += 1;
-				break;
-			}
+      switch (direction) {
+        case 'left':
+          selectedModel.value.position.x -= 1;
+          break;
+        case 'right':
+          selectedModel.value.position.x += 1;
+          break;
+        case 'forward':
+          selectedModel.value.position.z -= 1;
+          break;
+        case 'backward':
+          selectedModel.value.position.z += 1;
+          break;
+      }
+    };
 
-			// Update model position in the scene
-			if (currentModel) {
-			currentModel.position.set(
-			modelPosition.value.x,
-			modelPosition.value.y,
-			modelPosition.value.z
-			);
-		}
-			};
-			const moveModelLeft = () => moveModel('left');
-			const moveModelRight = () => moveModel('right');
-			const moveModelForward = () => moveModel('forward');
-			const moveModelBackward = () => moveModel('backward');
-
+		const moveModelLeft = () => moveModel('left');
+		const moveModelRight = () => moveModel('right');
+		const moveModelForward = () => moveModel('forward');
+		const moveModelBackward = () => moveModel('backward');
 	
 		return {
 			sceneContainer,
