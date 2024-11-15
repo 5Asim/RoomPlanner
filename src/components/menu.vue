@@ -65,6 +65,8 @@ import Card_Item from '@/components/card.vue';
 import fan from '@/assets/3d/fan.glb'	
 import monitor from '@/assets/3d/monitor.glb'
 import table_3d from '@/assets/3d/table.glb'
+import door from '@/assets/3d/door.glb'
+import window from '@/assets/3d/window.glb'
 // import person from '@/assets/3d/Dayo.glb'
 
 export default defineComponent({
@@ -96,9 +98,15 @@ export default defineComponent({
 				},
 				{
 					id: 4,
-					name: 'Bed',
+					name: 'door',
 					src: "@/assets/3d/fan.glb",
-					model: ""
+					model: door
+				},
+				{
+					id: 5,
+					name: 'window',
+					src: "@/assets/3d/f.anglb",
+					model: window
 				},
 			],
 			width:	10, // Default width

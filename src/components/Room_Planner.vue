@@ -50,7 +50,9 @@
 			<button @click="rotateModelRight">
 				<img src="../assets/rotate-right.png" alt="rotate right" width="20" height="20">
 			</button>  
-			
+			<button v-if="selectedModelId" @click="switchWall(selectedModelId)">
+				<img src="../assets/switch.png" alt="switch" width="20" height="20">
+			</button>
 		</div>  
 		<!-- Add this to your template -->
 		<div class="placed-models-list">
@@ -60,6 +62,7 @@
 			@click="selectModel(model.id)">
 			<span>{{model.name}}</span>
 			<button @click.stop="removeModel(model.id)">Remove</button>
+
 			</div>
 		</div>     
 		</div>
@@ -238,16 +241,16 @@
 		};
 	
 		const loadModel = (modelPath) => {
-		if (!modelPath?.model) return;
-		isLoading.value = true;
+			if (!modelPath?.model) return;
+			isLoading.value = true;
 
-		const dracoLoader = new DRACOLoader();
-		dracoLoader.setDecoderPath('/draco/');
-		dracoLoader.setDecoderConfig({ type: 'js' });
+			const dracoLoader = new DRACOLoader();
+			dracoLoader.setDecoderPath('/draco/');
+			dracoLoader.setDecoderConfig({ type: 'js' });
 
-		const loader = new GLTFLoader();
-		loader.setDRACOLoader(dracoLoader);
-		loader.load(
+			const loader = new GLTFLoader();
+			loader.setDRACOLoader(dracoLoader);
+			loader.load(
 			modelPath.model,
 			(gltf) => {
 			const newModel = gltf.scene;
@@ -261,13 +264,50 @@
 			const scaleFactor = roomHeight.value / 2;
 			newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
+			// Determine initial position and rotation based on model type
+			let initialPosition = { x: 0, y: 0, z: 0 };
+			let initialRotation = { y: 0 };
+			let wall = null;
+
+			if (modelPath.name.toLowerCase().includes('door')) {
+				// Place door on front wall by default
+				initialPosition = {
+				x: 0,
+				y: 0,
+				z: roomDepth.value / 2
+				};
+				initialRotation = { y: Math.PI };
+				wall = 'front';
+			} else if (modelPath.name.toLowerCase().includes('window')) {
+				// Place window on left wall by default
+				initialPosition = {
+				x: -roomWidth.value / 2,
+				y: roomHeight.value / 2,
+				z: 0
+				};
+				initialRotation = { y: Math.PI / 2 };
+				wall = 'left';
+			}
+
+			// Set initial position and rotation
+			newModel.position.set(
+				initialPosition.x,
+				initialPosition.y,
+				initialPosition.z
+			);
+			newModel.rotation.y = initialRotation.y;
+
 			// Create a unique model entry
 			const modelEntry = {
 				id: Date.now(),
 				model: newModel,
 				name: modelPath.name,
-				position: { x: 0, y: 0, z: 0 },
-				rotation: { y: 0 } 
+				position: initialPosition,
+				rotation: initialRotation,
+				type: modelPath.name.toLowerCase().includes('door') ? 'door' : 
+				modelPath.name.toLowerCase().includes('window') ? 'window' : 
+				'furniture',
+				wall: wall
 			};
 
 			// Add to placedModels array
@@ -285,8 +325,8 @@
 			console.error('Error loading model:', error);
 			isLoading.value = false;
 			}
-		);
-		};
+			);
+			};
 		const initializeRoom = () => {
 			if (!isValidDimensions.value) return;
 			isRoomInitialized.value = true;
@@ -378,27 +418,96 @@
 			const step = 0.5;
 			const previousPosition = { ...modelEntry.position };
 
+			// Handle movement based on model type and wall
+			if (modelEntry.type === 'door' || modelEntry.type === 'window') {
+			// Constrain movement based on wall placement
+			switch (modelEntry.wall) {
+			case 'front':
+				// Only allow horizontal movement along front wall
+				if (direction === 'left') modelEntry.position.x -= step;
+				if (direction === 'right') modelEntry.position.x += step;
+				// Keep fixed Z position
+				modelEntry.position.z = roomDepth.value / 2;
+				break;
+			
+			case 'back':
+				// Only allow horizontal movement along back wall
+				if (direction === 'left') modelEntry.position.x -= step;
+				if (direction === 'right') modelEntry.position.x += step;
+				// Keep fixed Z position
+				modelEntry.position.z = -roomDepth.value / 2;
+				break;
+			
+			case 'left':
+				// Only allow forward/backward movement along left wall
+				if (direction === 'forward') modelEntry.position.z -= step;
+				if (direction === 'backward') modelEntry.position.z += step;
+				// Keep fixed X position
+				modelEntry.position.x = -roomWidth.value / 2;
+				break;
+			
+			case 'right':
+				// Only allow forward/backward movement along right wall
+				if (direction === 'forward') modelEntry.position.z -= step;
+				if (direction === 'backward') modelEntry.position.z += step;
+				// Keep fixed X position
+				modelEntry.position.x = roomWidth.value / 2;
+				break;
+			}
+
+			// Maintain fixed height for windows and doors
+			if (modelEntry.type === 'window') {
+			modelEntry.position.y = roomHeight.value / 2; // Windows at mid-height
+			} else if (modelEntry.type === 'door') {
+			modelEntry.position.y = 0; // Doors at floor level
+			}
+
+			} else {
+			// Normal movement for furniture
 			switch (direction) {
 			case 'left':
-			modelEntry.position.x -= step;
-			break;
+				modelEntry.position.x -= step;
+				break;
 			case 'right':
-			modelEntry.position.x += step;
-			break;
+				modelEntry.position.x += step;
+				break;
 			case 'forward':
-			modelEntry.position.z -= step;
-			break;
+				modelEntry.position.z -= step;
+				break;
 			case 'backward':
-			modelEntry.position.z += step;
-			break;
+				modelEntry.position.z += step;
+				break;
+			}
 			}
 
 			// Check boundaries
 			const boundaryOffset = 1;
-			const isOutOfBounds = 
-			Math.abs(modelEntry.position.x) > (roomWidth.value / 2 - boundaryOffset) ||
-			Math.abs(modelEntry.position.z) > (roomDepth.value / 2 - boundaryOffset);
+			let isOutOfBounds = false;
 
+			if (modelEntry.type === 'door' || modelEntry.type === 'window') {
+			const wallWidth = modelEntry.wall === 'front' || modelEntry.wall === 'back' 
+			? roomWidth.value 
+			: roomDepth.value;
+			
+			// Check if the model exceeds the wall boundaries
+			switch (modelEntry.wall) {
+			case 'front':
+			case 'back':
+				isOutOfBounds = Math.abs(modelEntry.position.x) > (wallWidth/2 - boundaryOffset);
+				break;
+			case 'left':
+			case 'right':
+				isOutOfBounds = Math.abs(modelEntry.position.z) > (wallWidth/2 - boundaryOffset);
+				break;
+			}
+			} else {
+			// Boundary check for furniture
+			isOutOfBounds = 
+			Math.abs(modelEntry.position.x) > (roomWidth.value/2 - boundaryOffset) ||
+			Math.abs(modelEntry.position.z) > (roomDepth.value/2 - boundaryOffset);
+			}
+
+			// Revert position if out of bounds
 			if (isOutOfBounds) {
 			modelEntry.position = previousPosition;
 			return;
@@ -410,7 +519,7 @@
 			modelEntry.position.y,
 			modelEntry.position.z
 			);
-		};
+			};
 			const moveModelLeft = () => moveModel('left');
 			const moveModelRight = () => moveModel('right');
 			const moveModelForward = () => moveModel('forward');
@@ -443,7 +552,52 @@
 			};
 
 			const rotateModelLeft = () => rotateModel('left');
-			const rotateModelRight = () => rotateModel('right');
+			const rotateModelRight = () => rotateModel('right')
+			;
+			const switchWall = (modelId) => {
+				const modelEntry = placedModels.value.find(entry => entry.id === modelId);
+				if (!modelEntry || (modelEntry.type !== 'door' && modelEntry.type !== 'window')) return;
+
+				// Cycle through walls: front -> right -> back -> left
+				const wallSequence = ['front', 'right', 'back', 'left'];
+				const currentIndex = wallSequence.indexOf(modelEntry.wall);
+				const nextWall = wallSequence[(currentIndex + 1) % wallSequence.length];
+
+				// Update wall and position
+				modelEntry.wall = nextWall;
+				
+				// Set position based on new wall
+				switch (nextWall) {
+				case 'front':
+				modelEntry.position.x = 0;
+				modelEntry.position.z = roomDepth.value / 2;
+				modelEntry.rotation.y = Math.PI;
+				break;
+				case 'back':
+				modelEntry.position.x = 0;
+				modelEntry.position.z = -roomDepth.value / 2;
+				modelEntry.rotation.y = 0;
+				break;
+				case 'left':
+				modelEntry.position.x = -roomWidth.value / 2;
+				modelEntry.position.z = 0;
+				modelEntry.rotation.y = Math.PI / 2;
+				break;
+				case 'right':
+				modelEntry.position.x = roomWidth.value / 2;
+				modelEntry.position.z = 0;
+				modelEntry.rotation.y = -Math.PI / 2;
+				break;
+				}
+
+				// Update model position and rotation in the scene
+				modelEntry.model.position.set(
+				modelEntry.position.x,
+				modelEntry.position.y,
+				modelEntry.position.z
+				);
+				modelEntry.model.rotation.y = modelEntry.rotation.y;
+				};
 		return {
 			sceneContainer,
 			isRoomInitialized,
@@ -463,7 +617,8 @@
 			placedModels,
 			selectedModelId,
 			rotateModelLeft,
-			rotateModelRight
+			rotateModelRight,
+			switchWall
 		};
 		},
 	});
@@ -574,7 +729,7 @@
 		align-items: center;
 		gap: 5px;
 		position: absolute;
-		top: 16%;
+		top: 40%;
 		right: 2% ;
 		transform: translate(-50%, -50%);
 		z-index: 10;
