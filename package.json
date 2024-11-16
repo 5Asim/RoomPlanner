@@ -11,6 +11,7 @@
     "@babylonjs/core": "^7.33.0",
     "@babylonjs/loaders": "^7.33.0",
     "core-js": "^3.8.3",
+    "firebase": "^11.0.2",
     "three": "^0.145.0",
     "vue": "^3.2.13",
     "vue-router": "^4.4.5"
