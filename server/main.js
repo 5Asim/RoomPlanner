@@ -1,58 +1,84 @@
 require("dotenv").config();
+import {
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
+import {
+  getStorage,
+  ref,
+  getDownloadURL,
+  uploadBytesResumable,
+} from "firebase/storage";
+
 const saltedMd5 = require("salted-md5");
 const path = require("path");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 var admin = require("firebase-admin");
+import firebase from "./fiberbaseconfig.js";
 
-var serviceAccount = require("service_account.json");
+// var serviceAccount = require("service_account.json");
 
 class Product {
-  constructor(id, name, price, retailer, amountInStock) {
+  constructor(id, name, price, modelSrc, images, description, category) {
     (this.id = id),
       (this.name = name),
       (this.price = price),
-      (this.retailer = retailer),
-      (this.amountInStock = amountInStock);
+      (this.images = images),
+      (this.modelSrc = modelSrc),
+      (this.category = category),
+      (this.desciption = description);
   }
 }
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
+const db = getFirestore(firebase);
+const storage = getStorage(firebase);
+// app.locals.bucket = admin.storage().bucket();
 
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://fir-project-1-58a04.firebaseio.com",
-  storageBucket: process.env.BUCKET_URL,
-});
-app.locals.bucket = admin.storage().bucket();
+const giveCurrentDateTime = () => {
+  const today = new Date();
+  const date =
+    today.getFullYear() + "-" + (today.getMonth() + 1) + "-" + today.getDate();
+  const time =
+    today.getHours() + ":" + today.getMinutes() + ":" + today.getSeconds();
+  const dateTime = date + " " + time;
+  return dateTime;
+};
 
 app.post("/upload", upload.array("images", 10), async (req, res) => {
   try {
     const files = req.files; // Access uploaded files
     const urls = await Promise.all(
       files.map(async (file) => {
-        const blob = bucket.file(`images/${Date.now()}_${file.originalname}`);
-        const blobStream = blob.createWriteStream({
-          metadata: {
-            contentType: file.mimetype,
-          },
-        });
+        const dateTime = giveCurrentDateTime();
+        const storageRef = ref(
+          storage,
+          `files/${req.file.originalname + "       " + dateTime}`
+        );
 
-        // Handle file upload to Firebase
-        blobStream.end(file.buffer);
+        // Create file metadata including the content type
+        const metadata = {
+          contentType: req.file.mimetype,
+        };
 
-        // Wait for the upload to complete
-        await new Promise((resolve, reject) => {
-          blobStream.on("finish", resolve);
-          blobStream.on("error", reject);
-        });
+        // Upload the file in the bucket storage
+        const snapshot = await uploadBytesResumable(
+          storageRef,
+          req.file.buffer,
+          metadata
+        );
+        //by using uploadBytesResumable we can control the progress of uploading like pause, resume, cancel
 
-        // Get the public URL
-        const publicUrl = `https://storage.googleapis.com/${bucket.name}/${blob.name}`;
-        return publicUrl;
+        // Grab the public url
+        const downloadURL = await getDownloadURL(snapshot.ref);
+
+        return downloadURL;
       })
     );
 
@@ -92,8 +118,10 @@ export const getProducts = async (req, res, next) => {
           doc.id,
           doc.data().name,
           doc.data().price,
-          doc.data().retailer,
-          doc.data().amountInStock
+          doc.data().images,
+          doc.data().modelSrc,
+          doc.data().desciption,
+          doc.data().category
         );
         productArray.push(product);
       });
@@ -133,4 +161,3 @@ app.use(express.json());
 app.use("/api", productRoute);
 
 app.listen(4000, () => console.log(`Server is live @ localhost`));
-

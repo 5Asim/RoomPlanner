@@ -4,8 +4,6 @@ const path = require("path");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
-
-
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://fir-project-1-58a04.firebaseio.com",
