@@ -1,5 +1,5 @@
 require("dotenv").config();
-import {
+const {
   getFirestore,
   collection,
   doc,
@@ -8,20 +8,16 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
-} from "firebase/firestore";
-import {
-  getStorage,
-  ref,
-  getDownloadURL,
-  uploadBytesResumable,
-} from "firebase/storage";
+} = "firebase/firestore";
+const { getStorage, ref, getDownloadURL, uploadBytesResumable } =
+  "firebase/storage";
 
 const saltedMd5 = require("salted-md5");
 const path = require("path");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 var admin = require("firebase-admin");
-import firebase from "./fiberbaseconfig.js";
+const firebase = require("./fiberbaseconfig.js");
 
 // var serviceAccount = require("service_account.json");
 
