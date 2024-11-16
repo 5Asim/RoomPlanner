@@ -1,9 +1,20 @@
 require("dotenv").config();
+import {
+  getFirestore,
+  collection,
+  doc,
+  addDoc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  deleteDoc,
+} from 'firebase/firestore';
 const saltedMd5 = require("salted-md5");
 const path = require("path");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 var admin = require("firebase-admin");
+import firebase from './fiberbaseconfig.js'
 
 var serviceAccount = require("service_account.json");
 
@@ -12,24 +23,13 @@ class Product {
     (this.id = id),
       (this.name = name),
       (this.price = price),
-      (this.retailer = retailer),
-      (this.amountInStock = amountInStock);
+      (this.images = images),
+      (this.desciption = description);
+      (this.categry = category);
   }
 }
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
-});
-
-
-
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: "https://fir-project-1-58a04.firebaseio.com",
-  storageBucket: process.env.BUCKET_URL,
-});
-app.locals.bucket = admin.storage().bucket();
+const db = getFirestore(firebase);
+// app.locals.bucket = admin.storage().bucket();
 
 app.post("/upload", upload.array("images", 10), async (req, res) => {
   try {
