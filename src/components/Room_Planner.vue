@@ -27,9 +27,7 @@
 	
 		<!-- Main room view -->
 		<div v-show="isRoomInitialized" ref="sceneContainer" class="scene-container">
-			<Floating_menu
-			@item-selected="handleModelSelect"
-			/>
+			<Floating_menu @item-selected="handleModelSelect"/>
 		<div class="control-panel">
 			<div>
 				<button @click="moveModelLeft">
@@ -74,7 +72,18 @@
 			<button @click="removeModel(model.id)">Remove</button>
 
 			</div>
-		</div>     
+		</div> 
+		
+		<div class="camera-panel">
+			<button @click="takeScreenshot">
+				
+				<img src="../assets//camera.png" alt="Screenshot" width="20" height="20"/>
+			</button>
+			<button @click="cycleView">
+				<img src="../assets//eye.png" alt="Change View" width="20" height="20"/>
+			</button>
+			
+		</div>
 		</div>
 	</div>
 </template>
@@ -97,40 +106,106 @@
 		},
 	
 		setup() {
-		const sceneContainer = ref(null);
-		const isRoomInitialized = ref(false);
-		const isLoading = ref(false);
-		const roomWidth = ref(10);
-		const roomHeight = ref(5);
-		const roomDepth = ref(10);
-		const currentModelPath = ref(null);
-	
-		const isValidDimensions = computed(() => {
-		return roomWidth.value > 5 && 
-			roomHeight.value > 5 && 
-			roomDepth.value > 5;
-		});
-	
-		let scene, camera, renderer, controls;
-		let textureLoader;
-		let textures = {
-		floor: null,
-		wall: null,
-		ceiling: null
-		};
+			const sceneContainer = ref(null);
+			const isRoomInitialized = ref(false);
+			const isLoading = ref(false);
+			const roomWidth = ref(10);
+			const roomHeight = ref(5);
+			const roomDepth = ref(10);
+			const currentModelPath = ref(null);
+			let originalCameraPosition = null;
+			let originalControlsState = null;
+			const isValidDimensions = computed(() => {
+			return roomWidth.value > 5 && 
+				roomHeight.value > 5 && 
+				roomDepth.value > 5;
+			});
 		
-		let roomObjects = [];
-		
-		const placedModels = ref([]);
-		const selectedModelId = ref(null);
-		const handleModelSelect = (modelPath) => {
-		if (isLoading.value) return;
-		if (!modelPath?.model) return;
-		if (scene && isRoomInitialized.value) {
-			loadModel(modelPath);
-		}
+			let scene, camera, renderer, controls;
+			let textureLoader;
+			let textures = {
+			floor: null,
+			wall: null,
+			ceiling: null
+			};
+			
+			let roomObjects = [];
+			
+			const placedModels = ref([]);
+			const selectedModelId = ref(null);
+			const handleModelSelect = (modelPath) => {
+			if (isLoading.value) return;
+			if (!modelPath?.model) return;
+			if (scene && isRoomInitialized.value) {
+				loadModel(modelPath);
+			}
+			};
+			//Camera View
+			const currentViewIndex = ref(0);
+			const views = computed(() => [
+				{
+					position: new Three.Vector3(0, roomHeight.value * 3, 0), // Top
+					lookAt: new Three.Vector3(0, 0, 0)
+				},
+				{
+					position: new Three.Vector3(roomWidth.value, roomHeight.value, roomDepth.value), // Corner
+					lookAt: new Three.Vector3(0, 0, 0)
+				},
+				{
+					position: new Three.Vector3(roomWidth.value * 1.5, roomHeight.value / 2, 0), // Side
+					lookAt: new Three.Vector3(0, roomHeight.value / 2, 0)
+				},
+				{
+					position: new Three.Vector3(0, roomHeight.value * 2, roomWidth.value * 2), // Default
+					lookAt: new Three.Vector3(0, 0, 0)
+				}
+			]);
+
+			const cycleView = () => {
+			if (!camera || !controls) return;
+			
+			// Update view index
+			currentViewIndex.value = (currentViewIndex.value + 1) % views.value.length;
+			const view = views.value[currentViewIndex.value];
+			
+			// Store target position and lookAt for animation
+			const targetPosition = view.position;
+			const targetLookAt = view.lookAt;
+			
+			// Temporarily disable controls
+			controls.enabled = false;
+			
+			// Smoothly animate to new position
+			const startPosition = camera.position.clone();
+			const startLookAt = controls.target.clone();
+			const duration = 1000; // 1 second
+			const startTime = Date.now();
+			
+			function animate() {
+				const elapsed = Date.now() - startTime;
+				const progress = Math.min(elapsed / duration, 1);
+				
+				// Use easing function for smooth transition
+				const easeProgress = 1 - Math.cos((progress * Math.PI) / 2);
+				
+				// Interpolate position
+				camera.position.lerpVectors(startPosition, targetPosition, easeProgress);
+				
+				// Interpolate lookAt point
+				controls.target.lerpVectors(startLookAt, targetLookAt, easeProgress);
+				controls.update();
+				
+				if (progress < 1) {
+				requestAnimationFrame(animate);
+				} else {
+				// Re-enable controls after animation
+				controls.enabled = true;
+				}
+			}
+			
+			animate();
 		};
-	
+
 		const loadTextures = () => {
 		textureLoader = new Three.TextureLoader();
 	
@@ -365,7 +440,10 @@
 			0.1,
 			2000
 			);
-		
+			
+			const initialView = views.value[currentViewIndex.value];
+			camera.position.copy(initialView.position);
+
 			renderer = new Three.WebGLRenderer();
 			renderer.setSize(sceneContainer.value.clientWidth, sceneContainer.value.clientHeight);
 			renderer.shadowMap.enabled = true;
@@ -379,6 +457,8 @@
 			controls.dampingFactor = 0.25;
 			controls.screenSpacePanning = false;
 			controls.maxPolarAngle = Math.PI / 2;
+			controls.target.copy(initialView.lookAt);
+			controls.update();
 		
 			loadTextures();
 			createRoom();
@@ -648,6 +728,49 @@
 				modelEntry.position.z
 				);
 				modelEntry.model.rotation.y = modelEntry.rotation.y;
+			};
+			const takeScreenshot = () => {
+				if (!scene || !camera || !controls || !renderer) return;
+				
+				// Store original camera position and controls state
+				originalCameraPosition = {
+					position: camera.position.clone(),
+					rotation: camera.rotation.clone()
+				};
+				originalControlsState = {
+					enabled: controls.enabled
+				};
+				
+				// Move camera to top view
+				const maxDimension = Math.max(roomWidth.value, roomDepth.value);
+				camera.position.set(0, maxDimension * 2, 0);
+				camera.lookAt(0, 0, 0);
+				
+				// Disable controls temporarily
+				controls.enabled = false;
+				
+				// Wait for the next frame to ensure camera position is updated
+				requestAnimationFrame(() => {
+					// Render the scene
+					renderer.render(scene, camera);
+					
+					// Convert the canvas to an image
+					const screenshot = renderer.domElement.toDataURL('image/png');
+					
+					// Create a temporary link to download the image
+					const link = document.createElement('a');
+					link.href = screenshot;
+					link.download = 'room-top-view.png';
+					link.click();
+					
+					// Restore camera position and controls
+					camera.position.copy(originalCameraPosition.position);
+					camera.rotation.copy(originalCameraPosition.rotation);
+					controls.enabled = originalControlsState.enabled;
+					
+					// Re-render the scene with original view
+					renderer.render(scene, camera);
+				});
 				};
 
 			
@@ -671,12 +794,15 @@
 			selectedModelId,
 			rotateModelLeft,
 			rotateModelRight,
-			switchWall
+			switchWall,
+			takeScreenshot,
+			cycleView,
+			currentViewIndex
 		};
 		},
 	});
 </script>
-      
+      .
 <style>
 	
 </style>

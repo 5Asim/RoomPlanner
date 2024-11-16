@@ -245,3 +245,41 @@
 		flex-direction: column;
 		gap: 40px;
 	}
+	.camera-panel {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		flex-direction: row;
+		gap: 10px;
+		position: fixed;
+		bottom: 20px; /* Changed from 2px to 20px to match the right panel's spacing */
+		left: 20px;
+		background: rgba(255, 255, 255, 0.8);
+		padding: 10px;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		z-index: 10; /* Added to ensure it appears above other elements */
+	}
+	    
+	    /* Add hover effect to match the control panel */
+	.camera-panel button {
+		border: 2px solid #fff;
+		border-radius: 4px;
+		width: 40px;
+		height: 40px;
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		cursor: pointer;
+		transition: background-color 0.3s, transform 0.2s;
+	}
+	    
+	.camera-panel button:hover {
+		background-color: #555;
+		transform: scale(1.1);
+	}
+	    
+	.camera-panel button:active {
+		background-color: #777;
+		transform: scale(1.05);
+	}
