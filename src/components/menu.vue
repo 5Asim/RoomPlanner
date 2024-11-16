@@ -55,12 +55,28 @@
 
 <script>
 import { defineComponent } from 'vue';
-import table from '@/assets/table.jpeg';
-import Card_Item from '@/components/card.vue';
-import fan from '@/assets/3d/fan.glb'	
+import table from '@/assets/table.png';
+import Card_Item from '@/components/card.vue';	
+import printer from "@/assets/printer.png"
+import vase from "@/assets/vase.png"
+import sofa from "@/assets/sofa.png"
+import nightstand from "@/assets/nightstand.png"
+import standingDesk from "@/assets/standing_desk.png"
+import chair from "@/assets/chair.png"
+import door from "@/assets/door.png"
+
+import vase_3d from "@/assets/3d/vase.glb"
 // import monitor from '@/assets/3d/monitor.glb'
 import table_3d from '@/assets/3d/table.glb'
-import sofa from '@/assets/3d/sofa.glb'
+import sofa_3d from '@/assets/3d/sofa.glb'
+import chair_3d from "@/assets/3d/chair.glb"
+// import bookshelf from "@/assets/3d/bookshelf.glb"
+import printer_3d from "@/assets/3d/printer_3d.glb"
+import nightstand_3d from "@/assets/3d/nightstand.glb"
+import standingDesk_3d from "@/assets/3d/standing_desk.glb"
+import door_3d from "@/assets/3d/door.glb"
+import window_3d from "@/assets/3d/window.glb"
+// import window from "@/assets/3d/window.glb"
 // import door fro/m '@/assets/3d/door.glb'
 // import window from '@/assets/3d/window.glb'
 // import person from '@/assets/3d/Dayo.glb'
@@ -76,35 +92,62 @@ export default defineComponent({
 			items: [
 				{
 					id: 1,
-					name: 'Fan',
-					src: table,
-					model: fan
+					name: 'Sofa',
+					src: sofa,
+					model: sofa_3d
 				},
 				{
 					id: 2,
-					name: 'Sofa',
+					name: 'Table',
 					src: table,
-					model: sofa
+					model: table_3d
 				},
 				{
 					id: 3,
-					name: 'Person',
-					src: table,
-					model: table_3d
+					name: 'chair',
+					src: chair,
+					model: chair_3d
 				},
 				{
 					id: 4,
 					name: 'door',
-					src: "@/assets/3d/fan.glb",
-					model: fan
+					src: door,
+					model: door_3d
 				},
 				{
 					id: 5,
-					name: 'window',
-					src: "@/assets/3d/f.anglb",
-					model: table_3d
+					name: 'Printer',
+					src: printer,
+					model: printer_3d
+
 				},
+				{
+					id: 6,
+					name: 'Vase',
+					src: vase,
+					model: vase_3d
+				},
+				{
+					id:7,
+					name: "Night Stand",
+					src: nightstand,
+					model: nightstand_3d
+
+				},
+				{
+					id: 8,
+					name: "Standing Desk",
+					src: standingDesk,
+					model: standingDesk_3d
+				},
+				{
+					id:9,
+					name: "Window",
+					src: "",
+					model: window_3d
+				}
 			],
+
 			
 		};
 	},

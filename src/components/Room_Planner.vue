@@ -95,7 +95,7 @@
 	import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 	import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 	import floor from "@/assets/wooden_floor.jpg";
-	import wall from "@/assets/wall_texture.jpg";
+	import wall from "@/assets/blue_wall.jpg";
 	import celling from "@/assets/celling.jpg";
 	// import fan from '@/assets/3d/fan.glb';
 	import Floating_menu from './floating_menu.vue';
@@ -116,9 +116,9 @@
 			let originalCameraPosition = null;
 			let originalControlsState = null;
 			const isValidDimensions = computed(() => {
-			return roomWidth.value > 5 && 
-				roomHeight.value > 5 && 
-				roomDepth.value > 5;
+			return roomWidth.value > 4 && 
+				roomHeight.value > 4 && 
+				roomDepth.value > 4;
 			});
 		
 			let scene, camera, renderer, controls;
@@ -126,7 +126,7 @@
 			let textures = {
 			floor: null,
 			wall: null,
-			ceiling: null
+			ceiling: null,
 			};
 			
 			let roomObjects = [];
@@ -140,71 +140,105 @@
 				loadModel(modelPath);
 			}
 			};
+
+			const SCALE_FACTOR = 15; // 1 meter = 10 Three.js units
+
+			const convertToSceneUnits = (meters) => meters * SCALE_FACTOR;
+			// const convertToRealUnits = (sceneUnits) => sceneUnits / SCALE_FACTOR;
 			//Camera View
 			const currentViewIndex = ref(0);
-			const views = computed(() => [
-				{
-					position: new Three.Vector3(0, roomHeight.value * 3, 0), // Top
+			const views = computed(() => {
+				const sceneWidth = convertToSceneUnits(roomWidth.value);
+				const sceneHeight = convertToSceneUnits(roomHeight.value);
+				const sceneDepth = convertToSceneUnits(roomDepth.value);
+				
+				// Calculate maximum dimension for scaling
+				const maxDimension = Math.max(sceneWidth, sceneHeight, sceneDepth);
+				
+				return [
+					{
+					// Top view - looking down from above
+					position: new Three.Vector3(
+					0, 
+					maxDimension * 1.2, // Reduced height multiplier
+					0
+					),
 					lookAt: new Three.Vector3(0, 0, 0)
-				},
-				{
-					position: new Three.Vector3(roomWidth.value, roomHeight.value, roomDepth.value), // Corner
+					},
+					{
+					// Corner view - isometric perspective
+					position: new Three.Vector3(
+					sceneWidth * 0.8,  // Reduced from 1.5
+					sceneHeight * 0.8, // Reduced from 1.5
+					sceneDepth * 0.8   // Reduced from 1.5
+					),
 					lookAt: new Three.Vector3(0, 0, 0)
-				},
-				{
-					position: new Three.Vector3(roomWidth.value * 1.5, roomHeight.value / 2, 0), // Side
-					lookAt: new Three.Vector3(0, roomHeight.value / 2, 0)
-				},
-				{
-					position: new Three.Vector3(0, roomHeight.value * 2, roomWidth.value * 2), // Default
-					lookAt: new Three.Vector3(0, 0, 0)
-				}
-			]);
+					},
+					{
+					// Side view - from the right
+					position: new Three.Vector3(
+					sceneWidth * 1.2,  // Reduced from 2
+					sceneHeight * 0.5, // Keep at half height
+					0
+					),
+					lookAt: new Three.Vector3(0, sceneHeight * 0.3, 0)
+					},
+					{
+					// Front view - from a slight angle
+					position: new Three.Vector3(
+					sceneWidth * 0.3,  // Slight angle
+					sceneHeight * 0.8, // Reduced from 2.5
+					sceneDepth * 1.2   // Reduced from 2.5
+					),
+					lookAt: new Three.Vector3(0, sceneHeight * 0.3, 0)
+					}
+				];
+				});
 
-			const cycleView = () => {
-			if (!camera || !controls) return;
-			
-			// Update view index
-			currentViewIndex.value = (currentViewIndex.value + 1) % views.value.length;
-			const view = views.value[currentViewIndex.value];
-			
-			// Store target position and lookAt for animation
-			const targetPosition = view.position;
-			const targetLookAt = view.lookAt;
-			
-			// Temporarily disable controls
-			controls.enabled = false;
-			
-			// Smoothly animate to new position
-			const startPosition = camera.position.clone();
-			const startLookAt = controls.target.clone();
-			const duration = 1000; // 1 second
-			const startTime = Date.now();
-			
-			function animate() {
-				const elapsed = Date.now() - startTime;
-				const progress = Math.min(elapsed / duration, 1);
-				
-				// Use easing function for smooth transition
-				const easeProgress = 1 - Math.cos((progress * Math.PI) / 2);
-				
-				// Interpolate position
-				camera.position.lerpVectors(startPosition, targetPosition, easeProgress);
-				
-				// Interpolate lookAt point
-				controls.target.lerpVectors(startLookAt, targetLookAt, easeProgress);
-				controls.update();
-				
-				if (progress < 1) {
-				requestAnimationFrame(animate);
-				} else {
-				// Re-enable controls after animation
-				controls.enabled = true;
-				}
-			}
-			
-			animate();
-		};
+				const cycleView = () => {
+					if (!camera || !controls) return;
+					
+					// Update view index
+					currentViewIndex.value = (currentViewIndex.value + 1) % views.value.length;
+					const view = views.value[currentViewIndex.value];
+					
+					// Store target position and lookAt for animation
+					const targetPosition = view.position;
+					const targetLookAt = view.lookAt;
+					
+					// Temporarily disable controls
+					controls.enabled = false;
+					
+					// Smoothly animate to new position
+					const startPosition = camera.position.clone();
+					const startLookAt = controls.target.clone();
+					const duration = 1000; // Slightly faster animation
+					const startTime = Date.now();
+					
+					function animate() {
+						const elapsed = Date.now() - startTime;
+						const progress = Math.min(elapsed / duration, 1);
+						
+						// Use easeOutCubic for smoother animation
+						const easeProgress = 1 - Math.pow(1 - progress, 3);
+						
+						// Interpolate position
+						camera.position.lerpVectors(startPosition, targetPosition, easeProgress);
+						
+						// Interpolate lookAt point
+						controls.target.lerpVectors(startLookAt, targetLookAt, easeProgress);
+						controls.update();
+						
+						if (progress < 1) {
+						requestAnimationFrame(animate);
+						} else {
+						// Re-enable controls after animation
+						controls.enabled = true;
+						}
+					}
+					
+					animate();
+					};
 
 		const loadTextures = () => {
 		textureLoader = new Three.TextureLoader();
@@ -220,18 +254,26 @@
 			textures.floor = loadTexture(floor);
 			textures.wall = loadTexture(wall);
 			textures.ceiling = loadTexture(celling);
+			// textures.sides = loadTexture()
+
 		};
 	
 		const createRoom = () => {
 
 			roomObjects.forEach(obj => scene.remove(obj));
 			roomObjects = [];
+			const TEXTURE_SCALE = 2; 
+
+			const sceneWidth = convertToSceneUnits(roomWidth.value);
+			const sceneHeight = convertToSceneUnits(roomHeight.value);
+			const sceneDepth = convertToSceneUnits(roomDepth.value);
 		
-			textures.floor.repeat.set(roomWidth.value / 10, roomDepth.value / 10);
-			textures.wall.repeat.set(roomWidth.value / 10, roomHeight.value / 10);
+			textures.floor.repeat.set(roomWidth.value / TEXTURE_SCALE, roomDepth.value / TEXTURE_SCALE);
+			textures.wall.repeat.set(roomWidth.value / TEXTURE_SCALE, roomHeight.value / TEXTURE_SCALE);
+			textures.ceiling.repeat.set(roomWidth.value / TEXTURE_SCALE, roomDepth.value / TEXTURE_SCALE);
 		
 			// Floor
-			const floorGeometry = new Three.PlaneGeometry(roomWidth.value, roomDepth.value);
+			const floorGeometry = new Three.PlaneGeometry(sceneWidth, sceneDepth);
 			const floorMaterial = new Three.MeshStandardMaterial({
 			map: textures.floor,
 			roughness: 0.8,
@@ -248,54 +290,64 @@
 			roughness: 0.9,
 			metalness: 0.1,
 			});
-			const wallGeometry = new Three.PlaneGeometry(roomWidth.value, roomHeight.value);
+			// const wallGeometry = new Three.PlaneGeometry(roomWidth.value, roomHeight.value);
 		
 			// Back wall
-			const backWall = new Three.Mesh(wallGeometry, wallMaterial);
-			backWall.position.set(0, roomHeight.value / 2, -roomDepth.value / 2);
-			backWall.receiveShadow = true;
+			const backWallGeometry = new Three.PlaneGeometry(sceneWidth, sceneHeight);
+			const backWall = new Three.Mesh(backWallGeometry, wallMaterial);
+			backWall.position.set(0, sceneHeight / 2, -sceneDepth / 2);
+			backWall.receiveShadow = false;
 			scene.add(backWall);
 			roomObjects.push(backWall);
 		
 			// Front wall
-			const frontWall = new Three.Mesh(wallGeometry, wallMaterial);
-			frontWall.position.set(0, roomHeight.value / 2, roomDepth.value / 2);
+			const frontWall = new Three.Mesh(backWallGeometry, wallMaterial);
+			frontWall.position.set(0, sceneHeight / 2, sceneDepth / 2);
 			frontWall.rotation.y = Math.PI;
-			frontWall.receiveShadow = true;
+			frontWall.receiveShadow = false;
 			scene.add(frontWall);
 			roomObjects.push(frontWall);
-		
+
+			const sideWallGeometry = new Three.PlaneGeometry(sceneDepth, sceneHeight);
+			
 			// Left wall
-			const leftWall = new Three.Mesh(wallGeometry, wallMaterial);
-			leftWall.position.set(-roomWidth.value / 2, roomHeight.value / 2, 0);
+			const leftWall = new Three.Mesh(sideWallGeometry, wallMaterial);
+			leftWall.position.set(-sceneWidth / 2, sceneHeight / 2, 0);
 			leftWall.rotation.y = Math.PI / 2;
-			leftWall.receiveShadow = true;
+			leftWall.receiveShadow = false;
 			scene.add(leftWall);
 			roomObjects.push(leftWall);
+
+			
 		
 			// Right wall
-			const rightWall = new Three.Mesh(wallGeometry, wallMaterial);
-			rightWall.position.set(roomWidth.value / 2, roomHeight.value / 2, 0);
+			const rightWall = new Three.Mesh(sideWallGeometry, wallMaterial);
+			rightWall.position.set(sceneWidth / 2, sceneHeight / 2, 0);
 			rightWall.rotation.y = -Math.PI / 2;
-			rightWall.receiveShadow = true;
+			rightWall.receiveShadow = false;
 			scene.add(rightWall);
 			roomObjects.push(rightWall);
 		
+			
 			// Ceiling
-			const ceilingGeometry = new Three.PlaneGeometry(roomWidth.value, roomDepth.value);
+			const ceilingGeometry = new Three.PlaneGeometry(sceneWidth, sceneDepth);
 			const ceilingMaterial = new Three.MeshStandardMaterial({
 			map: textures.ceiling,
 			roughness: 0.9,
 			metalness: 0.1,
 			});
 			const ceiling = new Three.Mesh(ceilingGeometry, ceilingMaterial);
-			ceiling.position.set(0, roomHeight.value, 0);
+			ceiling.position.set(0, sceneHeight, 0);
 			ceiling.rotation.x = Math.PI / 2;
 			ceiling.receiveShadow = true;
 			scene.add(ceiling);
 			roomObjects.push(ceiling);
 		
 			
+		};
+		const getModelHeight = (model) => {
+		const boundingBox = new Three.Box3().setFromObject(model);
+		return boundingBox.max.y - boundingBox.min.y;
 		};
 	
 		const addLights = () => {
@@ -330,86 +382,91 @@
 			const loader = new GLTFLoader();
 			loader.setDRACOLoader(dracoLoader);
 			loader.load(
-			modelPath.model,
-			(gltf) => {
-			const newModel = gltf.scene;
-			newModel.traverse((child) => {
-				if (child.isMesh) {
-				child.castShadow = true;
-				child.receiveShadow = true;
+				modelPath.model,
+				(gltf) => {
+				const newModel = gltf.scene;
+				newModel.traverse((child) => {
+					if (child.isMesh) {
+					child.castShadow = true;
+					child.receiveShadow = true;
+					}
+				});
+
+				const modelHeight = getModelHeight(newModel);
+				const targetHeight = convertToSceneUnits(roomHeight.value / 2.5);
+				const scaleFactor = targetHeight / modelHeight;
+				newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+
+				const sceneDepth = convertToSceneUnits(roomDepth.value);
+				const sceneWidth = convertToSceneUnits(roomWidth.value);
+				const sceneHeight = convertToSceneUnits(roomHeight.value);
+
+
+				// Determine initial position and rotation based on model type
+				let initialPosition = { x: 0, y: 0, z: 0 };
+				let initialRotation = { y: 0 };
+				let wall = null;
+
+				if (modelPath.name.toLowerCase().includes('door')) {
+					initialPosition = {
+						x: 0,
+						y: 0,
+						z: sceneDepth / 2
+					};
+					initialRotation = { y: Math.PI };
+					wall = 'front';
+				} else if (modelPath.name.toLowerCase().includes('window')) {
+					initialPosition = {
+					x: -sceneWidth / 2,
+					y: sceneHeight / 2,
+					z: 0
+					};
+					initialRotation = { y: Math.PI / 2 };
+					wall = 'left';
 				}
-			});
 
-			const scaleFactor = roomHeight.value / 2;
-			newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
+				// Set initial position and rotation
+				newModel.position.set(
+					initialPosition.x,
+					initialPosition.y,
+					initialPosition.z
+				);
+				newModel.rotation.y = initialRotation.y;
 
-			// Determine initial position and rotation based on model type
-			let initialPosition = { x: 0, y: 0, z: 0 };
-			let initialRotation = { y: 0 };
-			let wall = null;
-
-			if (modelPath.name.toLowerCase().includes('door')) {
-				// Place door on front wall by default
-				initialPosition = {
-				x: 0,
-				y: 0,
-				z: roomDepth.value / 2
+				// Create a unique model entry
+				const modelEntry = {
+					id: Date.now(),
+					model: newModel,
+					name: modelPath.name,
+					position: initialPosition,
+					rotation: initialRotation,
+					type: modelPath.name.toLowerCase().includes('door') ? 'door' : 
+					modelPath.name.toLowerCase().includes('window') ? 'window' : 
+					'furniture',
+					wall: wall
 				};
-				initialRotation = { y: Math.PI };
-				wall = 'front';
-			} else if (modelPath.name.toLowerCase().includes('window')) {
-				// Place window on left wall by default
-				initialPosition = {
-				x: -roomWidth.value / 2,
-				y: roomHeight.value / 2,
-				z: 0
-				};
-				initialRotation = { y: Math.PI / 2 };
-				wall = 'left';
-			}
 
-			// Set initial position and rotation
-			newModel.position.set(
-				initialPosition.x,
-				initialPosition.y,
-				initialPosition.z
-			);
-			newModel.rotation.y = initialRotation.y;
-
-			// Create a unique model entry
-			const modelEntry = {
-				id: Date.now(),
-				model: newModel,
-				name: modelPath.name,
-				position: initialPosition,
-				rotation: initialRotation,
-				type: modelPath.name.toLowerCase().includes('door') ? 'door' : 
-				modelPath.name.toLowerCase().includes('window') ? 'window' : 
-				'furniture',
-				wall: wall
-			};
-
-			// Add to placedModels array
-			placedModels.value.push(modelEntry);
-			
-			// Set as selected model
-			selectedModelId.value = modelEntry.id;
-			
-			// Add to scene
-			scene.add(newModel);
-			isLoading.value = false;
-			},
-			undefined,
-			(error) => {
-			console.error('Error loading model:', error);
-			isLoading.value = false;
-			}
+				// Add to placedModels array
+				placedModels.value.push(modelEntry);
+				
+				// Set as selected model
+				selectedModelId.value = modelEntry.id;
+				
+				// Add to scene
+				scene.add(newModel);
+				isLoading.value = false;
+				},
+				undefined,
+				(error) => {
+				console.error('Error loading model:', error);
+				isLoading.value = false;
+				}
 			);
 			};
 		const initializeRoom = () => {
 			if (!isValidDimensions.value) return;
 			isRoomInitialized.value = true;
-			isLoading.value = true; // Show loading screen
+			isLoading.value = true; // Show loa	ding screen
 		
 			// Wait for next tick to ensure sceneContainer is mounted
 			setTimeout(() => {
@@ -429,43 +486,64 @@
 		};
 	
 		const initScene = () => {
-			if (!sceneContainer.value) return;
+		if (!sceneContainer.value) return;
 		
-			scene = new Three.Scene();
-			scene.background = new Three.Color(0xf0f0f0);
+		scene = new Three.Scene();
+		scene.background = new Three.Color(0xf0f0f0);
+
+		const sceneWidth = convertToSceneUnits(roomWidth.value);
+		const sceneHeight = convertToSceneUnits(roomHeight.value);
+		const sceneDepth = convertToSceneUnits(roomDepth.value);
 		
-			camera = new Three.PerspectiveCamera(
-			75,
+		// Calculate room diagonal for better camera positioning
+		const roomDiagonal = Math.sqrt(
+			Math.pow(sceneWidth, 2) + 
+			Math.pow(sceneHeight, 2) +
+			Math.pow(sceneDepth, 2)
+		);
+
+		camera = new Three.PerspectiveCamera(
+			45, // Reduced FOV for less distortion
 			sceneContainer.value.clientWidth / sceneContainer.value.clientHeight,
 			0.1,
-			2000
-			);
-			
-			const initialView = views.value[currentViewIndex.value];
-			camera.position.copy(initialView.position);
+			3000
+		);
+		
+		// Set initial camera position farther back and higher up
+		camera.position.set(
+			sceneWidth * 1.2,    // Moved further to the side
+			sceneHeight * 1.5,   // Positioned higher
+			sceneDepth * 1.2     // Moved further back
+		);
 
-			renderer = new Three.WebGLRenderer();
-			renderer.setSize(sceneContainer.value.clientWidth, sceneContainer.value.clientHeight);
-			renderer.shadowMap.enabled = true;
-			renderer.shadowMap.type = Three.PCFSoftShadowMap;
-			sceneContainer.value.appendChild(renderer.domElement);
+		renderer = new Three.WebGLRenderer({ antialias: true });
+		renderer.setSize(sceneContainer.value.clientWidth, sceneContainer.value.clientHeight);
+		renderer.shadowMap.enabled = true;
+		renderer.shadowMap.type = Three.PCFSoftShadowMap;
+		sceneContainer.value.appendChild(renderer.domElement);
 		
-			camera.position.set(0, roomHeight.value * 2, roomWidth.value * 2);
+		controls = new OrbitControls(camera, renderer.domElement);
+		controls.enableDamping = true;
+		controls.dampingFactor = 0.05;
+		controls.screenSpacePanning = false;
+		controls.maxPolarAngle = Math.PI * 0.85;
+
+		// Adjust control target to point slightly lower in the room
+		controls.target.set(0, sceneHeight * 0.25, 0);
 		
-			controls = new OrbitControls(camera, renderer.domElement);
-			controls.enableDamping = true;
-			controls.dampingFactor = 0.25;
-			controls.screenSpacePanning = false;
-			controls.maxPolarAngle = Math.PI / 2;
-			controls.target.copy(initialView.lookAt);
-			controls.update();
+		// Update camera constraints
+		controls.minDistance = roomDiagonal * 0.4;  // Increased minimum distance
+		controls.maxDistance = roomDiagonal * 2.0;  // Increased maximum distance
 		
-			loadTextures();
-			createRoom();
-			addLights();
+		controls.update();
 		
-			animate();
+		loadTextures();
+		createRoom();
+		addLights();
+		
+		animate();
 		};
+
 	
 		// Handle window resize
 		onMounted(() => {
@@ -541,119 +619,147 @@
 		console.error('Error removing model:', error);
 		}
 		};
+
+
+
+		// Modified moveModel function
 		const moveModel = (direction) => {
 			if (!selectedModelId.value) return;
 
 			const modelEntry = placedModels.value.find(
-			entry => entry.id === selectedModelId.value
+				entry => entry.id === selectedModelId.value
 			);
 			if (!modelEntry) return;
 
-			const step = 0.5;
-			const previousPosition = { ...modelEntry.position };
+			const MOVEMENT_STEP = convertToSceneUnits(0.25);
+			const BOUNDARY_OFFSET = convertToSceneUnits(0.5);
 
-			// Handle movement based on model type and wall
-			if (modelEntry.type === 'door' || modelEntry.type === 'window') {
-			// Constrain movement based on wall placement
-			switch (modelEntry.wall) {
-			case 'front':
-				// Only allow horizontal movement along front wall
-				if (direction === 'left') modelEntry.position.x -= step;
-				if (direction === 'right') modelEntry.position.x += step;
-				// Keep fixed Z position
-				modelEntry.position.z = roomDepth.value / 2;
-				break;
-			
-			case 'back':
-				// Only allow horizontal movement along back wall
-				if (direction === 'left') modelEntry.position.x -= step;
-				if (direction === 'right') modelEntry.position.x += step;
-				// Keep fixed Z position
-				modelEntry.position.z = -roomDepth.value / 2;
-				break;
-			
-			case 'left':
-				// Only allow forward/backward movement along left wall
-				if (direction === 'forward') modelEntry.position.z -= step;
-				if (direction === 'backward') modelEntry.position.z += step;
-				// Keep fixed X position
-				modelEntry.position.x = -roomWidth.value / 2;
-				break;
-			
-			case 'right':
-				// Only allow forward/backward movement along right wall
-				if (direction === 'forward') modelEntry.position.z -= step;
-				if (direction === 'backward') modelEntry.position.z += step;
-				// Keep fixed X position
-				modelEntry.position.x = roomWidth.value / 2;
-				break;
-			}
-
-			// Maintain fixed height for windows and doors
-			if (modelEntry.type === 'window') {
-			modelEntry.position.y = roomHeight.value / 2; // Windows at mid-height
-			} else if (modelEntry.type === 'door') {
-			modelEntry.position.y = 0; // Doors at floor level
-			}
-
-			} else {
-			// Normal movement for furniture
-			switch (direction) {
-			case 'left':
-				modelEntry.position.x -= step;
-				break;
-			case 'right':
-				modelEntry.position.x += step;
-				break;
-			case 'forward':
-				modelEntry.position.z -= step;
-				break;
-			case 'backward':
-				modelEntry.position.z += step;
-				break;
-			}
-			}
-
-			// Check boundaries
-			const boundaryOffset = 1;
-			let isOutOfBounds = false;
+			const newPosition = {
+				x: modelEntry.model.position.x,
+				y: modelEntry.model.position.y,
+				z: modelEntry.model.position.z
+			};
 
 			if (modelEntry.type === 'door' || modelEntry.type === 'window') {
-			const wallWidth = modelEntry.wall === 'front' || modelEntry.wall === 'back' 
-			? roomWidth.value 
-			: roomDepth.value;
-			
-			// Check if the model exceeds the wall boundaries
-			switch (modelEntry.wall) {
-			case 'front':
-			case 'back':
-				isOutOfBounds = Math.abs(modelEntry.position.x) > (wallWidth/2 - boundaryOffset);
-				break;
-			case 'left':
-			case 'right':
-				isOutOfBounds = Math.abs(modelEntry.position.z) > (wallWidth/2 - boundaryOffset);
-				break;
-			}
+				const sceneWidth = convertToSceneUnits(roomWidth.value);
+				const sceneDepth = convertToSceneUnits(roomDepth.value);
+				const sceneHeight = convertToSceneUnits(roomHeight.value);
+
+				switch (modelEntry.wall) {
+				case 'front':
+				case 'back':
+					if (direction === 'left') newPosition.x -= MOVEMENT_STEP;
+					if (direction === 'right') newPosition.x += MOVEMENT_STEP;
+					newPosition.x = Math.max(-sceneWidth/2 + BOUNDARY_OFFSET, 
+					Math.min(sceneWidth/2 - BOUNDARY_OFFSET, newPosition.x));
+					newPosition.z = modelEntry.wall === 'front' ? sceneDepth/2 : -sceneDepth/2;
+					break;
+
+				case 'left':
+				case 'right':
+					if (direction === 'forward') newPosition.z -= MOVEMENT_STEP;
+					if (direction === 'backward') newPosition.z += MOVEMENT_STEP;
+					newPosition.z = Math.max(-sceneDepth/2 + BOUNDARY_OFFSET, 
+					Math.min(sceneDepth/2 - BOUNDARY_OFFSET, newPosition.z));
+					newPosition.x = modelEntry.wall === 'right' ? sceneWidth/2 : -sceneWidth/2;
+					break;
+				}
+
+				// Maintain the height for wall-mounted objects
+				newPosition.y = modelEntry.type === 'window' ? sceneHeight/2 : 0;
 			} else {
-			// Boundary check for furniture
-			isOutOfBounds = 
-			Math.abs(modelEntry.position.x) > (roomWidth.value/2 - boundaryOffset) ||
-			Math.abs(modelEntry.position.z) > (roomDepth.value/2 - boundaryOffset);
+				// Regular furniture movement logic
+				switch (direction) {
+				case 'left':
+					newPosition.x -= MOVEMENT_STEP;
+					break;
+				case 'right':
+					newPosition.x += MOVEMENT_STEP;
+					break;
+				case 'forward':
+					newPosition.z -= MOVEMENT_STEP;
+					break;
+				case 'backward':
+					newPosition.z += MOVEMENT_STEP;
+					break;
+				}
+
+				const maxX = convertToSceneUnits(roomWidth.value/2) - BOUNDARY_OFFSET;
+				const maxZ = convertToSceneUnits(roomDepth.value/2) - BOUNDARY_OFFSET;
+
+				newPosition.x = Math.max(-maxX, Math.min(maxX, newPosition.x));
+				newPosition.z = Math.max(-maxZ, Math.min(maxZ, newPosition.z));
 			}
 
-			// Revert position if out of bounds
-			if (isOutOfBounds) {
-			modelEntry.position = previousPosition;
-			return;
-			}
-
-			// Update model position in the scene
 			modelEntry.model.position.set(
-			modelEntry.position.x,
-			modelEntry.position.y,
-			modelEntry.position.z
+				newPosition.x,
+				newPosition.y,
+				newPosition.z
 			);
 			};
+
+
+		// Previous imports and component definition remain the same...
+
+		const switchWall = (modelId) => {
+		const modelEntry = placedModels.value.find(entry => entry.id === modelId);
+		if (!modelEntry || (modelEntry.type !== 'door' && modelEntry.type !== 'window')) return;
+
+		const wallSequence = ['front', 'right', 'back', 'left'];
+		const currentIndex = wallSequence.indexOf(modelEntry.wall);
+		const nextWall = wallSequence[(currentIndex + 1) % wallSequence.length];
+
+		const sceneWidth = convertToSceneUnits(roomWidth.value);
+		const sceneDepth = convertToSceneUnits(roomDepth.value);
+		const sceneHeight = convertToSceneUnits(roomHeight.value);
+		
+		// Calculate new position based on target wall
+		const calculateNewPosition = () => {
+			// Calculate positions in the middle of each wall by default
+			switch (nextWall) {
+			case 'front':
+				return {
+				x: 0,
+				z: sceneDepth/2,
+				rotation: Math.PI
+				};
+			case 'back':
+				return {
+				x: 0,
+				z: -sceneDepth/2,
+				rotation: 0
+				};
+			case 'left':
+				return {
+				x: -sceneWidth/2,
+				z: 0,
+				rotation: Math.PI/2
+				};
+			case 'right':
+				return {
+				x: sceneWidth/2,
+				z: 0,
+				rotation: -Math.PI/2
+				};
+			}
+		};
+
+		const newPosition = calculateNewPosition();
+		modelEntry.wall = nextWall;
+		
+		// Update model position and rotation
+		modelEntry.model.position.set(
+			newPosition.x,
+			modelEntry.type === 'window' ? sceneHeight/2 : 0,
+			newPosition.z
+		);
+		modelEntry.model.rotation.y = newPosition.rotation;
+		};
+
+
+
+			// Removed duplicate switchWall function
+
 			const moveModelLeft = () => moveModel('left');
 			const moveModelRight = () => moveModel('right');
 			const moveModelForward = () => moveModel('forward');
@@ -688,88 +794,90 @@
 			const rotateModelLeft = () => rotateModel('left');
 			const rotateModelRight = () => rotateModel('right')
 			;
-			const switchWall = (modelId) => {
-				const modelEntry = placedModels.value.find(entry => entry.id === modelId);
-				if (!modelEntry || (modelEntry.type !== 'door' && modelEntry.type !== 'window')) return;
-				const wallSequence = ['front', 'right', 'back', 'left'];
-				const currentIndex = wallSequence.indexOf(modelEntry.wall);
-				const nextWall = wallSequence[(currentIndex + 1) % wallSequence.length];
-
-				modelEntry.wall = nextWall;
-				
-				// Set position based on new wall
-				switch (nextWall) {
-				case 'front':
-				modelEntry.position.x = 0;
-				modelEntry.position.z = roomDepth.value / 2;
-				modelEntry.rotation.y = Math.PI;
-				break;
-				case 'back':
-				modelEntry.position.x = 0;
-				modelEntry.position.z = -roomDepth.value / 2;
-				modelEntry.rotation.y = 0;
-				break;
-				case 'left':
-				modelEntry.position.x = -roomWidth.value / 2;
-				modelEntry.position.z = 0;
-				modelEntry.rotation.y = Math.PI / 2;
-				break;
-				case 'right':
-				modelEntry.position.x = roomWidth.value / 2;
-				modelEntry.position.z = 0;
-				modelEntry.rotation.y = -Math.PI / 2;
-				break;
-				}
-
-				// Update model position and rotation in the scene
-				modelEntry.model.position.set(
-				modelEntry.position.x,
-				modelEntry.position.y,
-				modelEntry.position.z
-				);
-				modelEntry.model.rotation.y = modelEntry.rotation.y;
-			};
+			
 			const takeScreenshot = () => {
 				if (!scene || !camera || !controls || !renderer) return;
 				
-				// Store original camera position and controls state
+				// Store original camera and controls state
 				originalCameraPosition = {
-					position: camera.position.clone(),
-					rotation: camera.rotation.clone()
+				position: camera.position.clone(),
+				rotation: camera.rotation.clone()
 				};
 				originalControlsState = {
-					enabled: controls.enabled
+				enabled: controls.enabled,
+				target: controls.target.clone()
 				};
 				
-				// Move camera to top view
-				const maxDimension = Math.max(roomWidth.value, roomDepth.value);
-				camera.position.set(0, maxDimension * 2, 0);
+				// Calculate room dimensions in scene units
+				const sceneWidth = convertToSceneUnits(roomWidth.value);
+				// const sceneHeight = convertToSceneUnits(roomHeight.value);
+				const sceneDepth = convertToSceneUnits(roomDepth.value);
+				
+				// Calculate the maximum dimension and add padding
+				const maxDimension = Math.max(sceneWidth, sceneDepth);
+				const padding = maxDimension * 0.2; // 20% padding
+				
+				// Calculate optimal camera height based on room size
+				// Using FOV and desired view area to calculate required height
+				const fov = camera.fov * (Math.PI / 180); // convert to radians
+				const aspectRatio = renderer.domElement.width / renderer.domElement.height;
+				const requiredHeight = (maxDimension + padding * 2) / (2 * Math.tan(fov / 2)) * 
+				(aspectRatio > 1 ? 1 : aspectRatio);
+				
+				// Position camera for optimal view
+				camera.position.set(
+				0, // centered on x
+				requiredHeight, // calculated optimal height
+				0 // centered on z
+				);
 				camera.lookAt(0, 0, 0);
+				controls.target.set(0, 0, 0);
 				
 				// Disable controls temporarily
 				controls.enabled = false;
 				
-				// Wait for the next frame to ensure camera position is updated
+				// Ensure orthographic view for consistent scale
+				const originalProjection = camera.clone();
+				const orthographicSize = (maxDimension + padding * 2) / 2;
+				const orthoCamera = new Three.OrthographicCamera(
+				-orthographicSize * aspectRatio,
+				orthographicSize * aspectRatio,
+				orthographicSize,
+				-orthographicSize,
+				0.1,
+				requiredHeight * 2
+				);
+				orthoCamera.position.copy(camera.position);
+				orthoCamera.lookAt(0, 0, 0);
+				
+				// Wait for next frame to ensure camera update
 				requestAnimationFrame(() => {
-					// Render the scene
-					renderer.render(scene, camera);
-					
-					// Convert the canvas to an image
-					const screenshot = renderer.domElement.toDataURL('image/png');
-					
-					// Create a temporary link to download the image
-					const link = document.createElement('a');
-					link.href = screenshot;
-					link.download = 'room-top-view.png';
-					link.click();
-					
-					// Restore camera position and controls
-					camera.position.copy(originalCameraPosition.position);
-					camera.rotation.copy(originalCameraPosition.rotation);
-					controls.enabled = originalControlsState.enabled;
-					
-					// Re-render the scene with original view
-					renderer.render(scene, camera);
+				// Render with orthographic camera
+				renderer.render(scene, orthoCamera);
+				
+				// Convert the canvas to an image
+				const screenshot = renderer.domElement.toDataURL('image/png');
+				
+				// Create download link
+				const link = document.createElement('a');
+				link.href = screenshot;
+				const date = new Date().toISOString().split('T')[0];
+				link.download = `room-plan-${date}.png`;
+				link.click();
+				
+				// Restore original camera and controls
+				camera.copy(originalProjection);
+				camera.position.copy(originalCameraPosition.position);
+				camera.rotation.copy(originalCameraPosition.rotation);
+				controls.enabled = originalControlsState.enabled;
+				controls.target.copy(originalControlsState.target);
+				
+				// Cleanup
+				// orthoCamera.dispose();
+				// originalProjection.dispose();
+				
+				// Re-render with original view
+				renderer.render(scene, camera);
 				});
 				};
 
