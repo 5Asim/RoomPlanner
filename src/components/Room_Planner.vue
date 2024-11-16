@@ -394,7 +394,13 @@
 
 				const modelHeight = getModelHeight(newModel);
 				const targetHeight = convertToSceneUnits(roomHeight.value / 2.5);
-				const scaleFactor = targetHeight / modelHeight;
+				let scaleFactor;
+				if (modelPath.name.toLowerCase().includes('bottle')) {
+					// Apply a much smaller scale for bottles - adjust this value as needed
+					scaleFactor = (targetHeight / modelHeight) * 0.15; // Using 15% of normal scale
+				} else {
+					scaleFactor = targetHeight / modelHeight;
+				}
 				newModel.scale.set(scaleFactor, scaleFactor, scaleFactor);
 
 				const sceneDepth = convertToSceneUnits(roomDepth.value);

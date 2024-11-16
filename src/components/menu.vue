@@ -64,8 +64,9 @@ import nightstand from "@/assets/nightstand.png"
 import standingDesk from "@/assets/standing_desk.png"
 import chair from "@/assets/chair.png"
 import door from "@/assets/door.png"
-
+import bottle from "@/assets/bottle.jpg"
 import vase_3d from "@/assets/3d/vase.glb"
+import window from "@/assets/window.png"
 // import monitor from '@/assets/3d/monitor.glb'
 import table_3d from '@/assets/3d/table.glb'
 import sofa_3d from '@/assets/3d/sofa.glb'
@@ -76,6 +77,7 @@ import nightstand_3d from "@/assets/3d/nightstand.glb"
 import standingDesk_3d from "@/assets/3d/standing_desk.glb"
 import door_3d from "@/assets/3d/door.glb"
 import window_3d from "@/assets/3d/window.glb"
+import bottle_3d from "@/assets/3d/bottle.glb"
 // import window from "@/assets/3d/window.glb"
 // import door fro/m '@/assets/3d/door.glb'
 // import window from '@/assets/3d/window.glb'
@@ -143,8 +145,14 @@ export default defineComponent({
 				{
 					id:9,
 					name: "Window",
-					src: "",
+					src: window,
 					model: window_3d
+				},
+				{
+					id:10,
+					name: "Bottle",
+					src: bottle,
+					model: bottle_3d	
 				}
 			],
 
