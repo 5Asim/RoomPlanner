@@ -48,12 +48,7 @@
 				/>
 			</div>
 
-			<div v-if="selectedTab === 'dimension'" class="dimension">
-				<input type="number" placeholder="Width" />
-				<input type="number" placeholder="Height" />
-				<input type="number" placeholder="Depth" />
-				<button @click="updateDimensions">Done</button>
-			</div>
+			
 		</div>
 	</div>
 </template>
@@ -63,10 +58,11 @@ import { defineComponent } from 'vue';
 import table from '@/assets/table.jpeg';
 import Card_Item from '@/components/card.vue';
 import fan from '@/assets/3d/fan.glb'	
-import monitor from '@/assets/3d/monitor.glb'
+// import monitor from '@/assets/3d/monitor.glb'
 import table_3d from '@/assets/3d/table.glb'
-import door from '@/assets/3d/door.glb'
-import window from '@/assets/3d/window.glb'
+import sofa from '@/assets/3d/sofa.glb'
+// import door fro/m '@/assets/3d/door.glb'
+// import window from '@/assets/3d/window.glb'
 // import person from '@/assets/3d/Dayo.glb'
 
 export default defineComponent({
@@ -86,9 +82,9 @@ export default defineComponent({
 				},
 				{
 					id: 2,
-					name: 'Monitor',
+					name: 'Sofa',
 					src: table,
-					model: monitor
+					model: sofa
 				},
 				{
 					id: 3,
@@ -100,25 +96,19 @@ export default defineComponent({
 					id: 4,
 					name: 'door',
 					src: "@/assets/3d/fan.glb",
-					model: door
+					model: fan
 				},
 				{
 					id: 5,
 					name: 'window',
 					src: "@/assets/3d/f.anglb",
-					model: window
+					model: table_3d
 				},
 			],
-			width:	10, // Default width
-			height:	5,
-			depth: 10 // Default height
+			
 		};
 	},
-	methods: {
-		updateDimensions() {
-			this.$emit('update-dimensions', this.width, this.height, this.depth);
-		}
-	},
+	
 });
 </script>
 
@@ -129,131 +119,159 @@ export default defineComponent({
 		left: 0;
 		width: 35%;
 		height: 100%;
-		background-color: #fff;
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+		background-color: #ffffff;
+		box-shadow: 2px 0 20px rgba(0, 0, 0, 0.1);
 		overflow-y: auto;
-		padding: 2rem;
+		padding: 2.5rem;
+		transition: transform 0.3s ease-in-out;
+		z-index: 1000;
+	}
+	
+	.menu-container::-webkit-scrollbar {
+		width: 8px;
+	}
+	
+	.menu-container::-webkit-scrollbar-track {
+		background: #f1f1f1;
+		border-radius: 4px;
+	}
+	
+	.menu-container::-webkit-scrollbar-thumb {
+		background: #888;
+		border-radius: 4px;
+	}
+	
+	.menu-container::-webkit-scrollbar-thumb:hover {
+		background: #555;
 	}
 	
 	.menu {
 		display: flex;
 		flex-direction: column;
 		align-items: start;
+		gap: 2rem;
 	}
 	
 	.menu-header {
+		width: 100%;
 		text-align: left;
 		margin-bottom: 2rem;
 		position: relative;
 	}
 	
 	.menu-header h2 {
-		font-size: 2rem;
-		font-weight: 600;
-		margin-bottom: 0.5rem;
+		font-size: 2.2rem;
+		font-weight: 700;
+		margin-bottom: 1rem;
+		color: #2c3e50;
+		letter-spacing: -0.5px;
 	}
 	
 	.menu-header h3 {
-		font-size: 1.5rem;
+		font-size: 1.4rem;
 		font-weight: 500;
 		color: #666;
-		cursor: pointer;
-	}
-	
-	.icon-items, .icon-dimension {
-		display: flex;
-		align-items: center;
-		cursor: pointer;
-		margin-right: 1rem;
+		transition: color 0.2s ease;
 	}
 	
 	.close-button {
 		position: absolute;
-		top: 0;
-		right: 0;
-		width: 32px;
-		height: 32px;
+		top: 10px;
+		right: 10px;
+		width: 36px;
+		height: 36px;
 		display: flex;
+		align-items: center;
+		justify-content: center;
 		cursor: pointer;
-		transition: transform 0.25s ease-in-out;
+		transition: all 0.3s ease;
+		border-radius: 50%;
+		background-color: #f8f9fa;
 	}
 	
 	.close-button:hover {
-		transform: scale(1.2);
+		transform: rotate(90deg);
+		background-color: #e9ecef;
 	}
 	
 	.items-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
 		grid-gap: 1.5rem;
 		width: 100%;
-	}
-	
-	.dimension {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		width: 100%;
-		padding: 1.5rem;
-		background-color: #f9f9f9;
-		border-radius: 8px;
-		box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-	}
-	
-	.dimension input {
-		width: 100%;
-		padding: 0.75rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		font-size: 1rem;
-	}
-	
-	.dimension button {
-		align-self: flex-start;
-		padding: 0.75rem 1.5rem;
-		border: none;
-		border-radius: 4px;
-		background-color: #4CAF50;
-		color: #fff;
-		font-weight: 600;
-		cursor: pointer;
-		transition: background-color 0.3s;
-	}
-	
-	.dimension button:hover {
-		background-color: #45a049;
+		padding: 1rem 0;
 	}
 	
 	.icons {
 		display: flex;
 		justify-content: flex-start;
 		gap: 2rem;
-		margin-top: 1rem;
+		margin-top: 1.5rem;
+		padding: 0.5rem;
+		border-bottom: 2px solid #f1f1f1;
 	}
 	
 	.icon-items,
 	.icon-dimension {
 		display: flex;
 		align-items: center;
+		gap: 0.8rem;
+		padding: 0.8rem 1.2rem;
+		border-radius: 12px;
+		transition: all 0.3s ease;
+		background-color: transparent;
 		cursor: pointer;
-		gap: 0.5rem;
-		color: #333;
-		padding: 0.5rem;
-		transition: background-color 0.3s, color 0.3s;
-		border-radius: 8px;
 	}
 	
 	.icon-items:hover,
 	.icon-dimension:hover {
-		background-color: #e0e0e0;
-		color: #000;
+		background-color: #f8f9fa;
+		transform: translateY(-2px);
+	}
+	
+	.icon-items.active,
+	.icon-dimension.active {
+		background-color: #e9ecef;
 	}
 	
 	.icon-items h3,
 	.icon-dimension h3 {
 		margin: 0;
-		font-size: 1.1rem;
+		font-size: 1.4rem;
 		font-weight: 500;
+		color: #495057;
 	}
 	
+	/* Responsive Design */
+	@media (max-width: 1024px) {
+		.menu-container {
+		width: 45%;
+		}
+	}
+	
+	@media (max-width: 768px) {
+		.menu-container {
+		width: 100%;
+		}
+	
+		.items-grid {
+		grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+		}
+	}
+	
+	/* Animation for menu appearance */
+	@keyframes slideIn {
+		from {
+		transform: translateX(-100%);
+		opacity: 0;
+		}
+		to {
+		transform: translateX(0);
+		opacity: 1;
+		}
+	}
+	
+	.menu-container {
+		animation: slideIn 0.3s ease-out;
+	}
 </style>

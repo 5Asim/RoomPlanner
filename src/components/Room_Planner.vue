@@ -31,19 +31,29 @@
 			@item-selected="handleModelSelect"
 			/>
 		<div class="control-panel">
-			<button @click="moveModelLeft">
-				<img src="../assets/left.png" alt="left" width="20" height="20">
-				
-			</button>
+			<div>
+				<button @click="moveModelLeft">
+					<img src="../assets/left.png" alt="left" width="20" height="20">
+					
+				</button>
+			</div>
+			
+			<div class="ws">
+				<button @click="moveModelForward">
+					<img src="../assets/up.png" alt="up" width="20" height="20">
+				</button>
+				<button @click="moveModelBackward">
+					<img src="../assets/down.png" alt="down" width="2	0" height="20">
+				</button>
+			</div>
+
+
+			<div>
 			<button @click="moveModelRight">
 				<img src="../assets/right.png" alt="right" width="20" height="20">
 			</button>
-			<button @click="moveModelForward">
-				<img src="../assets/up.png" alt="up" width="20" height="20">
-			</button>
-			<button @click="moveModelBackward">
-				<img src="../assets/down.png" alt="down" width="2	0" height="20">
-			</button>
+			</div>
+			
 			<button @click="rotateModelLeft">
 				<img src="../assets/rotate-left.png" alt="rotate left" width="20" height="20">
 			</button>
@@ -61,7 +71,7 @@
 			:class="['model-item', { selected: selectedModelId === model.id }]"
 			@click="selectModel(model.id)">
 			<span>{{model.name}}</span>
-			<button @click.stop="removeModel(model.id)">Remove</button>
+			<button @click="removeModel(model.id)">Remove</button>
 
 			</div>
 		</div>     
@@ -77,11 +87,10 @@
 	import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 	import floor from "@/assets/wooden_floor.jpg";
 	import wall from "@/assets/wall_texture.jpg";
+	import celling from "@/assets/celling.jpg";
 	// import fan from '@/assets/3d/fan.glb';
 	import Floating_menu from './floating_menu.vue';
 
-
-	
 	export default defineComponent({
 		name: 'RoomPlanner',
 		components: { Floating_menu
@@ -94,9 +103,7 @@
 		const roomWidth = ref(10);
 		const roomHeight = ref(5);
 		const roomDepth = ref(10);
-		// const modelPosition = ref({ x: 0, y: 0, z: 0 });
 		const currentModelPath = ref(null);
-
 	
 		const isValidDimensions = computed(() => {
 		return roomWidth.value > 5 && 
@@ -111,14 +118,11 @@
 		wall: null,
 		ceiling: null
 		};
-		// let model = null;
+		
 		let roomObjects = [];
-		// let currentModel = null;
-		// In setup()
+		
 		const placedModels = ref([]);
 		const selectedModelId = ref(null);
-
-
 		const handleModelSelect = (modelPath) => {
 		if (isLoading.value) return;
 		if (!modelPath?.model) return;
@@ -140,7 +144,7 @@
 		
 			textures.floor = loadTexture(floor);
 			textures.wall = loadTexture(wall);
-			textures.ceiling = loadTexture('/ceiling-texture.jpg');
+			textures.ceiling = loadTexture(celling);
 		};
 	
 		const createRoom = () => {
@@ -398,14 +402,64 @@
 		};
 
 		const removeModel = (modelId) => {
-			const modelEntry = placedModels.value.find(entry => entry.id === modelId);
-			if (modelEntry) {
+		try {
+		// Find the model entry
+		const modelEntry = placedModels.value.find(model => model.id === modelId);
+		
+		if (modelEntry) {
+		// Remove from Three.js scene
+		if (modelEntry.model) {
+			// Remove all children and dispose of resources
+			modelEntry.model.traverse((child) => {
+			if (child.isMesh) {
+			// Dispose of geometry
+			if (child.geometry) {
+			child.geometry.dispose();
+			}
+			
+			// Dispose of materials
+			if (child.material) {
+			if (Array.isArray(child.material)) {
+				child.material.forEach(material => {
+				if (material.map) material.map.dispose();
+				material.dispose();
+				});
+			} else {
+				if (child.material.map) child.material.map.dispose();
+				child.material.dispose();
+			}
+			}
+			
+			// Remove from parent
+			if (child.parent) {
+			child.parent.remove(child);
+			}
+			}
+			});
+
+			// Remove the model from the scene
 			scene.remove(modelEntry.model);
-			placedModels.value = placedModels.value.filter(entry => entry.id !== modelId);
-			if (selectedModelId.value === modelId) {
+			
+			// Force Three.js to update the scene
+			renderer.renderLists.dispose();
+		}
+
+		// Remove from placedModels array
+		placedModels.value = placedModels.value.filter(model => model.id !== modelId);
+
+		// Clear selection if this was the selected model
+		if (selectedModelId.value === modelId) {
 			selectedModelId.value = null;
-			}
-			}
+		}
+
+		// Force a scene update
+		if (renderer) {
+			renderer.render(scene, camera);
+		}
+		}
+		} catch (error) {
+		console.error('Error removing model:', error);
+		}
 		};
 		const moveModel = (direction) => {
 			if (!selectedModelId.value) return;
@@ -557,13 +611,10 @@
 			const switchWall = (modelId) => {
 				const modelEntry = placedModels.value.find(entry => entry.id === modelId);
 				if (!modelEntry || (modelEntry.type !== 'door' && modelEntry.type !== 'window')) return;
-
-				// Cycle through walls: front -> right -> back -> left
 				const wallSequence = ['front', 'right', 'back', 'left'];
 				const currentIndex = wallSequence.indexOf(modelEntry.wall);
 				const nextWall = wallSequence[(currentIndex + 1) % wallSequence.length];
 
-				// Update wall and position
 				modelEntry.wall = nextWall;
 				
 				// Set position based on new wall
@@ -598,6 +649,8 @@
 				);
 				modelEntry.model.rotation.y = modelEntry.rotation.y;
 				};
+
+			
 		return {
 			sceneContainer,
 			isRoomInitialized,
@@ -625,190 +678,5 @@
 </script>
       
 <style>
-	.loading-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 1000;
-	}
 	
-	.loading-spinner {
-		border: 16px solid #f3f3f3;
-		border-top: 16px solid #3498db;
-		border-radius: 50%;
-		width: 120px;
-		height: 120px;
-		animation: spin 2s linear infinite;
-	}
-	
-	@keyframes spin {
-		0% { transform: rotate(0deg); }
-		100% { transform: rotate(360deg); }
-	}
-	
-	.dimensions-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		width: 100%;
-		height: 100%;
-		background-color: rgba(0, 0, 0, 0.5);
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		z-index: 1000;
-	}
-	
-	.dimensions-form {
-		background-color: white;
-		padding: 2rem;
-		border-radius: 8px;
-		box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-		width: 100%;
-		max-width: 400px;
-	}
-	
-	.form-title {
-		margin: 0 0 1.5rem 0;
-		text-align: center;
-		color: #333;
-	}
-	
-	.input-group {
-		margin-bottom: 1rem;
-	}
-	
-	.input-group label {
-		display: block;
-		margin-bottom: 0.5rem;
-		color: #666;
-	}
-	
-	.input-group input {
-		width: 100%;
-		padding: 0.5rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		font-size: 1rem;
-	}
-	
-		
-	.dimensions-form button {
-		width: 100%;
-		padding: 0.75rem;
-		background-color: #007bff;
-		color: white;
-		border: none;
-	}
-	
-	.scene-container {
-		width: 100%;
-		height: 100vh;
-		overflow: hidden;
-		position: relative;
-		background-color: #f5f5f5; /* Light background color */
-	}
-	
-	html, body {
-		margin: 0;
-		padding: 0;
-		height: 100%;
-		overflow: hidden; /* Prevent scrolling */
-	}
-	
-	.control-panel {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		gap: 5px;
-		position: absolute;
-		top: 40%;
-		right: 2% ;
-		transform: translate(-50%, -50%);
-		z-index: 10;
-	}
-
-	.control-panel button {
-		background-color: #333;
-		border: 2px solid #fff;
-		border-radius: 50%;
-		width: 40px;
-		height: 40px;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		cursor: pointer;
-		transition: background-color 0.3s, transform 0.2s;
-	}
-
-	.control-panel button img {
-		width: 20px;
-		height: 20px;
-	}
-
-	.control-panel button:hover {
-		background-color: #555;
-		transform: scale(1.1);
-	}
-
-	.control-panel button:active {
-		background-color: #777;
-		transform: scale(1.05);
-	}
-
-	.control-panel .direction-row {
-		display: flex;
-		justify-content: center;
-		gap: 10px;
-	}
-
-	.control-panel .direction-row:nth-child(2) {
-		margin-top: 10px;
-	}
-
-	/* Adding an extra gap for the middle button */
-	.control-panel .direction-row > button:first-child {
-	margin-bottom: 10px;
-	}
-	.placed-models-list {
-		position: absolute;
-		right: 20px;
-		top: 20px;
-		background: rgba(255, 255, 255, 0.9);
-		padding: 10px;
-		border-radius: 5px;
-		max-height: 300px;
-		overflow-y: auto;
-	}
-
-	.model-item {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		padding: 5px 10px;
-		margin: 5px 0;
-		cursor: pointer;
-		border-radius: 4px;
-	}
-	.model-item.selected {
-		background: #e3f2fd;
-	}
-
-	.model-item button {
-		margin-left: 10px;
-		padding: 2px 6px;
-		background: #ff4444;
-		color: white;
-		border: none;
-		border-radius: 3px;
-		cursor: pointer;
-	}
-
 </style>
