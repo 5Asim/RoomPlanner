@@ -22,8 +22,6 @@ admin.initializeApp({
 });
 
 
-
-
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
   databaseURL: "https://fir-project-1-58a04.firebaseio.com",
